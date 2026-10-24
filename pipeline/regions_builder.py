@@ -1383,6 +1383,557 @@ def build_region_r03_central_souqs(
     return built_count
 
 
+# ==============================================================================
+# 5. REGION 4: ARMENIAN QUARTER, ZION GATE & ST. JAMES CATHEDRAL (`r04_armenian_quarter`)
+# ==============================================================================
+
+def _build_st_james_cathedral_and_patriarchate(collector: MeshCollector, sign_atlas: Dict[str, dict]) -> None:
+    """
+    Builds the 12th-century St. James Cathedral (`Surb Hakob` at `(132.5, -227.3)`),
+    its vaulted narthex porch with cobalt-blue Armenian ceramic tiles (`mat_tile_iznik`),
+    conical Armenian cupola dome, and the Armenian Patriarchate Compound & Garden along
+    Armenian Patriarchate Road (`x = 46..56, y = -85..-380`).
+    """
+    cx, cy = 132.5, -227.3
+    bz = street_elevation_z(cx, cy)
+
+    # 1. Cathedral Basilica Hall (`28m x 21m x 11.8m`)
+    collector.add_box("Buildings_Walls", "mat_stone_ashlar", (cx, cy, bz + 5.9), (28.0, 21.0, 11.8), uv_scale=0.22)
+    collector.add_box("Buildings_Details", "mat_stone_mizzi", (cx, cy, bz + 12.0), (28.6, 21.6, 0.45), uv_scale=0.30)
+
+    # 2. Central 12-sided Armenian Drum + Conical Pyramidal Cupola Dome (`z = +11.8 .. +22.5m`)
+    collector.add_branch_tube(
+        "Buildings_Walls",
+        "mat_stone_mizzi",
+        (cx, cy, bz + 11.8),
+        (cx, cy, bz + 16.5),
+        4.8,
+        4.6,
+        segments=12,
+        cap_end=True,
+    )
+    for ang_deg in range(0, 360, 30):
+        ang = math.radians(ang_deg)
+        wx = cx + math.cos(ang) * 4.72
+        wy = cy + math.sin(ang) * 4.72
+        tx, ty = -math.sin(ang), math.cos(ang)
+        nx, ny = math.cos(ang), math.sin(ang)
+        add_arched_opening_panel(
+            collector,
+            "Buildings_Openings",
+            "mat_wood_doors",
+            (wx, wy),
+            bz + 12.4,
+            bz + 15.6,
+            0.55,
+            1.1,
+            0.02,
+            (tx, ty),
+            (nx, ny),
+            uv_rect=WOOD_DOOR_UV["window_glass"],
+            num_voussoirs=5,
+            add_wall_spandrel=False,
+        )
+    # Conical cupola roof (`r0=4.9 -> r1=0.15`)
+    collector.add_branch_tube(
+        "Buildings_Details",
+        "mat_dome_lead",
+        (cx, cy, bz + 16.4),
+        (cx, cy, bz + 21.8),
+        4.95,
+        0.18,
+        segments=12,
+        cap_end=True,
+    )
+    # Cross finial
+    collector.add_box("Buildings_Details", "mat_dome_gold", (cx, cy, bz + 22.6), (0.18, 0.18, 1.6), uv_scale=0.5)
+    collector.add_box("Buildings_Details", "mat_dome_gold", (cx, cy, bz + 22.9), (0.95, 0.18, 0.18), uv_scale=0.5)
+
+    # 3. Southern Arched Narthex Porch (`Etchmiadzin Chapel` entrance) with Blue Armenian Ceramic Tilework (`mat_tile_iznik`)
+    ny = cy - 12.2
+    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (cx, ny, bz + 3.6), (22.0, 3.8, 7.2), uv_scale=0.25)
+    # Blue Armenian ceramic tile frieze and panel
+    collector.add_box("Buildings_Details", "mat_tile_iznik", (cx, ny - 1.94, bz + 5.6), (18.5, 0.12, 1.35), uv_scale=0.45)
+    for arch_x in (-6.2, 0.0, 6.2):
+        add_arched_opening_panel(
+            collector,
+            "Buildings_Openings",
+            "mat_wood_doors",
+            (cx + arch_x, ny - 1.92),
+            bz,
+            bz + 4.2,
+            1.4,
+            3.1,
+            0.02,
+            (1.0, 0.0),
+            (0.0, -1.0),
+            uv_rect=WOOD_DOOR_UV["door_wood" if arch_x == 0.0 else "window_glass"],
+            num_voussoirs=9,
+            add_wall_spandrel=False,
+        )
+        add_arch_voussoirs(
+            collector,
+            "Buildings_Details",
+            "mat_stone_boss",
+            (cx + arch_x, ny - 1.92, bz + 2.8),
+            (1.0, 0.0),
+            (0.0, -1.0),
+            span_w=3.2,
+            arch_h=1.45,
+            ring_thickness=0.38,
+            offset_n0=-0.02,
+            offset_n1=0.24,
+            num_voussoirs=9,
+        )
+
+    # 4. Armenian Patriarchate Road Buttress Arches & Monastery Compound Walls (`x = 50, y = -110..-360`)
+    for py in (-125.0, -165.0, -205.0, -245.0, -285.0, -325.0):
+        pz = street_elevation_z(52.0, py)
+        for sx in (-3.4, 3.4):
+            collector.add_box("Buildings_Walls", "mat_stone_boss", (52.0 + sx, py, pz + 3.2), (1.3, 1.2, 6.4), uv_scale=0.26)
+        collector.add_box("Buildings_Details", "mat_stone_boss", (52.0, py, pz + 5.9), (8.0, 1.15, 1.0), uv_scale=0.28, bottom_face=True)
+        build_street_lamp(collector, 54.6, py + 4.0, pz, height=4.2)
+
+
+def build_region_r04_armenian_quarter(
+    collector: MeshCollector,
+    osm_data: dict,
+    sign_atlas: Dict[str, dict],
+) -> int:
+    """
+    Builds Region 4 (`r04_armenian_quarter`):
+      - Continuous stone-paved ground surface across `[-30..285] x [-430..-45]`
+      - SW Ottoman City Wall (`Segment 1`: Citadel south -> SW Corner -> Zion Gate -> Jewish Quarter)
+      - Zion Gate (`Bab al-Nabi Dawud` at `(190.6, -411.4)`)
+      - St. James Cathedral (`(132.5, -227.3)`), Armenian Patriarchate Road, and Armenian Garden groves
+      - All valid `r04_armenian_quarter` OSM buildings
+    """
+    def r04_exclude(x: float, y: float) -> bool:
+        if x < 85.0 and y > -86.0:
+            return True
+        return False
+
+    build_region_ground_grid(collector, -25.0, 285.0, -455.0, -45.0, step=5.5, exclude_fn=r04_exclude)
+
+    # 1. SW Ottoman City Wall (`Segment 1` of relation `5862586`, starting south of Citadel at `y <= -85`)
+    sw_wall_pts = [
+        (14.5, -85.0),
+        (16.0, -118.9),
+        (8.8, -158.9),
+        (11.3, -175.0),
+        (7.2, -193.6),
+        (8.6, -225.7),
+        (4.2, -242.5),
+        (10.0, -296.0),
+        (7.7, -349.1),
+        (13.2, -372.4),
+        (5.7, -389.4),
+        (60.6, -395.5),
+        (104.0, -408.8),
+        (153.5, -406.5),
+        (180.9, -413.2),
+        (190.6, -411.4),
+        (225.5, -415.9),
+        (267.0, -402.8),
+        (286.5, -407.1),
+    ]
+    build_ottoman_wall_polyline(
+        collector,
+        sw_wall_pts,
+        wall_height=12.5,
+        thickness=3.2,
+        gate_gaps=[(190.6, -411.4, 5.5)],
+        bastion_every=3,
+    )
+
+    # 2. Zion Gate (`Bab al-Nabi Dawud` at `(190.6, -411.4)`, facing North `8 deg` into the city)
+    build_ottoman_gatehouse(
+        collector,
+        (190.6, -411.4),
+        heading_inward_deg=8.0,
+        gate_name="Zion Gate (Bab al-Nabi Dawud)",
+        width=16.5,
+        depth=12.5,
+        height=14.2,
+    )
+
+    # 3. St. James Cathedral & Armenian Patriarchate Compound
+    _build_st_james_cathedral_and_patriarchate(collector, sign_atlas)
+
+    # 4. OSM Buildings in `r04_armenian_quarter`
+    clear_scene_building_rings()
+    osm_buildings = [
+        b for b in osm_data.get("buildings", [])
+        if b.get("region") == "r04_armenian_quarter"
+    ]
+    valid_blds = []
+    for b in osm_buildings:
+        osm_id = int(b.get("osm_id", 0))
+        if osm_id in (5862586, 7880713, 265410575):
+            continue
+        cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
+        if cx < 86.0 and cy > -88.0:
+            continue
+        # Keep St. James Cathedral & forecourt (`x = 112..154, y = -252..-210`) clear
+        if 112.0 <= cx <= 154.0 and -252.0 <= cy <= -210.0:
+            continue
+        # Keep Armenian Patriarchate Road (`x = 45..59, y = -385..-85`) clear
+        if 45.0 <= cx <= 59.0 and -385.0 <= cy <= -85.0:
+            continue
+        # Keep Zion Gate inner plaza (`x = 172..212, y = -418..-378`) clear
+        if 172.0 <= cx <= 212.0 and -418.0 <= cy <= -378.0:
+            continue
+        ring = b.get("ring", [])
+        if len(ring) < 3:
+            continue
+        rxs = [float(p[0]) for p in ring]
+        rys = [float(p[1]) for p in ring]
+        if (max(rxs) - min(rxs)) > 65.0 or (max(rys) - min(rys)) > 65.0:
+            continue
+        valid_blds.append(b)
+        register_scene_building_ring(osm_id, ring)
+
+    built_count = 0
+    for idx, b in enumerate(valid_blds):
+        ring = b.get("ring", [])
+        cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
+        bz = street_elevation_z(cx, cy)
+        lvls = max(2, min(3, int(b.get("levels", 2))))
+        build_building_from_footprint(
+            collector,
+            ring,
+            base_z=bz,
+            levels=lvls,
+            sign_atlas=sign_atlas,
+            building_id=int(b.get("osm_id", idx)),
+            is_hero=False,
+        )
+        built_count += 1
+
+    # 5. Armenian Garden Pine/Cypress & Olive Groves (`x = 20..42, y = -130..-350`)
+    garden_trees = [
+        (26.0, -135.0, "cypress", 11.5, 501),
+        (34.0, -165.0, "olive", 6.5, 502),
+        (24.0, -195.0, "cypress", 12.0, 503),
+        (36.0, -225.0, "olive", 6.8, 504),
+        (28.0, -260.0, "cypress", 11.2, 505),
+        (35.0, -295.0, "olive", 6.4, 506),
+        (25.0, -330.0, "cypress", 11.8, 507),
+        (118.0, -244.0, "cypress", 10.5, 508),
+        (146.0, -244.0, "olive", 6.2, 509),
+        (182.0, -392.0, "olive", 6.5, 510),
+    ]
+    for tx, ty, sp, th, seed in garden_trees:
+        tz = street_elevation_z(tx, ty)
+        if sp == "cypress":
+            build_cypress_tree(collector, tx, ty, tz, height=th, seed=seed, with_kerb=True)
+        else:
+            build_olive_tree(collector, tx, ty, tz, height=th, seed=seed, with_kerb=True)
+
+    return built_count
+
+
+# ==============================================================================
+# 6. REGION 5: JEWISH QUARTER, HURVA SYNAGOGUE & ROMAN CARDO (`r05_jewish_quarter`)
+# ==============================================================================
+
+def _build_hurva_synagogue_and_roman_cardo(collector: MeshCollector, sign_atlas: Dict[str, dict]) -> None:
+    """
+    Builds:
+      1. The Hurva Synagogue (`Beit El / HaHurva` at `(346.7, -141.4)`) with its 4 monumental corner piers,
+         giant arched multi-light windows, 12-windowed cylindrical stone drum, and soaring 24m white/lead dome,
+         plus Hurva Square (`y = -126..-98`) and the Golden Menorah Pavilion (`(378.0, -108.0)`).
+      2. The Southern Roman Cardo (`x = 308.0, y = -195..-55`) with twin rows of monolithic limestone columns,
+         stone architrave beams, and Crusader pointed-arch shopfronts.
+      3. The Four Sephardic Synagogues (`(366.0, -238.0)`) and Hezekiah's Broad Wall (`(335.0, -78.0)`).
+    """
+    # 1. Hurva Synagogue (`(346.7, -141.4)`)
+    hx, hy = 346.7, -141.4
+    hz = street_elevation_z(hx, hy)
+
+    # Squaredressed Mizzi stone base (`22m x 22m x 12.8m`)
+    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (hx, hy, hz + 6.4), (22.0, 22.0, 12.8), uv_scale=0.22)
+    # 4 monumental projecting corner stone piers (`3.2m x 3.2m x 13.6m`)
+    for sx in (-10.2, 10.2):
+        for sy in (-10.2, 10.2):
+            collector.add_box("Buildings_Details", "mat_stone_boss", (hx + sx, hy + sy, hz + 6.8), (3.2, 3.2, 13.6), uv_scale=0.24)
+    # Upper stone cornice & balustrade
+    collector.add_box("Buildings_Details", "mat_stone_mizzi", (hx, hy, hz + 13.0), (23.0, 23.0, 0.55), uv_scale=0.30)
+
+    # Giant arched multi-light synagogue windows on all 4 facades + North Entrance Portal facing Hurva Square
+    for side_dir, (fx, fy), (tx, ty), (nx, ny) in (
+        ("N", (hx, hy + 11.04), (-1.0, 0.0), (0.0, 1.0)),
+        ("S", (hx, hy - 11.04), (1.0, 0.0), (0.0, -1.0)),
+        ("E", (hx + 11.04, hy), (0.0, 1.0), (1.0, 0.0)),
+        ("W", (hx - 11.04, hy), (0.0, -1.0), (-1.0, 0.0)),
+    ):
+        add_arched_opening_panel(
+            collector,
+            "Buildings_Openings",
+            "mat_wood_doors",
+            (fx, fy),
+            hz + 3.2,
+            hz + 11.2,
+            2.4,
+            5.2,
+            0.02,
+            (tx, ty),
+            (nx, ny),
+            uv_rect=WOOD_DOOR_UV["window_glass"],
+            num_voussoirs=11,
+            add_wall_spandrel=False,
+        )
+        add_arch_voussoirs(
+            collector,
+            "Buildings_Details",
+            "mat_stone_boss",
+            (fx, fy, hz + 8.8),
+            (tx, ty),
+            (nx, ny),
+            span_w=5.4,
+            arch_h=2.5,
+            ring_thickness=0.45,
+            offset_n0=-0.02,
+            offset_n1=0.26,
+            num_voussoirs=11,
+        )
+        if side_dir == "N":
+            # Triple arched stone entrance porch facing Hurva Square
+            collector.add_box("Buildings_Walls", "mat_stone_mizzi", (hx, hy + 12.6, hz + 2.3), (12.0, 3.2, 4.6), uv_scale=0.25)
+            for px_off in (-3.4, 0.0, 3.4):
+                add_arched_opening_panel(
+                    collector,
+                    "Buildings_Openings",
+                    "mat_wood_doors",
+                    (hx + px_off, hy + 14.22),
+                    hz,
+                    hz + 3.6,
+                    1.1,
+                    2.4,
+                    0.02,
+                    (-1.0, 0.0),
+                    (0.0, 1.0),
+                    uv_rect=WOOD_DOOR_UV["door_wood"],
+                    num_voussoirs=7,
+                    add_wall_spandrel=False,
+                )
+
+    # Tall 12-windowed cylindrical stone drum (`z = +12.8 .. +18.2m`, `radius = 8.2m`)
+    collector.add_branch_tube(
+        "Buildings_Walls",
+        "mat_stone_mizzi",
+        (hx, hy, hz + 12.8),
+        (hx, hy, hz + 18.2),
+        8.2,
+        8.0,
+        segments=16,
+        cap_end=True,
+    )
+    for ang_deg in range(0, 360, 30):
+        ang = math.radians(ang_deg)
+        wx = hx + math.cos(ang) * 8.12
+        wy = hy + math.sin(ang) * 8.12
+        tx, ty = -math.sin(ang), math.cos(ang)
+        nx, ny = math.cos(ang), math.sin(ang)
+        add_arched_opening_panel(
+            collector,
+            "Buildings_Openings",
+            "mat_wood_doors",
+            (wx, wy),
+            hz + 13.6,
+            hz + 17.2,
+            0.7,
+            1.4,
+            0.02,
+            (tx, ty),
+            (nx, ny),
+            uv_rect=WOOD_DOOR_UV["window_glass"],
+            num_voussoirs=5,
+            add_wall_spandrel=False,
+        )
+    # Soaring hemispherical Hurva Dome (`z = +18.0 .. +25.2m`)
+    collector.add_dome(
+        "Buildings_Details",
+        "mat_dome_lead",
+        (hx, hy, hz + 18.0),
+        radius=8.05,
+        height=7.2,
+        rings=10,
+        segments=20,
+    )
+    collector.add_box("Buildings_Details", "mat_dome_gold", (hx, hy, hz + 25.8), (0.22, 0.22, 1.6), uv_scale=0.5)
+
+    # 2. Golden Menorah Monument (`(378.0, -108.0)`) on the eastern terrace of Hurva Square
+    mx, my = 378.0, -108.0
+    mz = street_elevation_z(mx, my)
+    collector.add_box("Buildings_Details", "mat_stone_mizzi", (mx, my, mz + 0.65), (3.6, 3.6, 1.3), uv_scale=0.30)
+    collector.add_box("Buildings_Details", "mat_dome_gold", (mx, my, mz + 2.2), (0.28, 0.28, 2.0), uv_scale=0.5)
+    for arm_w in (0.9, 1.6, 2.3):
+        collector.add_box("Buildings_Details", "mat_dome_gold", (mx, my, mz + 2.0 + arm_w * 0.25), (arm_w, 0.16, 0.16), uv_scale=0.5)
+        collector.add_box("Buildings_Details", "mat_dome_gold", (mx - arm_w * 0.5, my, mz + 2.55), (0.16, 0.16, 0.9), uv_scale=0.5)
+        collector.add_box("Buildings_Details", "mat_dome_gold", (mx + arm_w * 0.5, my, mz + 2.55), (0.16, 0.16, 0.9), uv_scale=0.5)
+
+    # 3. Southern Roman Cardo Colonnade (`x = 308.0, y = -192..-58`)
+    for cy in range(-188, -56, 7):
+        cz = street_elevation_z(308.0, float(cy))
+        for col_x in (304.2, 311.8):
+            # Monolithic Roman limestone column shaft + base + Corinthian capital
+            collector.add_box("Buildings_Details", "mat_stone_boss", (col_x, float(cy), cz + 0.35), (0.95, 0.95, 0.7), uv_scale=0.35)
+            collector.add_branch_tube(
+                "Buildings_Details",
+                "mat_stone_mizzi",
+                (col_x, float(cy), cz + 0.7),
+                (col_x, float(cy), cz + 5.1),
+                0.38,
+                0.34,
+                segments=10,
+                cap_end=True,
+            )
+            collector.add_box("Buildings_Details", "mat_stone_mizzi", (col_x, float(cy), cz + 5.35), (0.92, 0.92, 0.5), uv_scale=0.35)
+        # Continuous stone architrave beam along the colonnade
+        if cy < -63:
+            cz_next = street_elevation_z(308.0, float(cy + 7))
+            z_beam = 0.5 * (cz + cz_next) + 5.8
+            for col_x in (304.2, 311.8):
+                collector.add_box("Buildings_Details", "mat_stone_mizzi", (col_x, float(cy) + 3.5, z_beam), (0.78, 7.2, 0.65), uv_scale=0.28, bottom_face=True)
+
+    # 4. Four Sephardic Synagogues (`(366.0, -238.0)`) & Broad Wall (`(335.0, -78.0)`)
+    sx, sy = 366.0, -238.0
+    sz = street_elevation_z(sx, sy)
+    collector.add_box("Buildings_Walls", "mat_stone_ashlar_aged", (sx, sy, sz + 3.8), (24.0, 20.0, 7.6), uv_scale=0.24)
+    for dx in (-5.5, 5.5):
+        for dy in (-4.5, 4.5):
+            collector.add_dome(
+                "Buildings_Details",
+                "mat_dome_lead",
+                (sx + dx, sy + dy, sz + 7.5),
+                radius=3.4,
+                height=2.8,
+                rings=6,
+                segments=12,
+            )
+
+    # Hezekiah's Broad Wall (`HaChoma HaRechava`, 7m wide First Temple stone fortification at `(335.0, -78.0)`)
+    bwx, bwy = 335.0, -78.0
+    bwz = street_elevation_z(bwx, bwy)
+    collector.add_box("Buildings_Walls", "mat_stone_rubble", (bwx, bwy, bwz + 1.4), (7.0, 18.0, 2.8), uv_scale=0.22)
+
+
+def build_region_r05_jewish_quarter(
+    collector: MeshCollector,
+    osm_data: dict,
+    sign_atlas: Dict[str, dict],
+) -> int:
+    """
+    Builds Region 5 (`r05_jewish_quarter`):
+      - Continuous stone-paved ground surface across `[280..560] x [-425..-45]`
+      - Southern Ottoman City Wall (`Segment 2` part 1: `(286.5, -407.1)` -> `(560.0, -224.0)`)
+      - Hurva Synagogue & Hurva Square, Golden Menorah Monument, Southern Roman Cardo, Four Sephardic Synagogues, Broad Wall
+      - All valid `r05_jewish_quarter` OSM buildings, olive/cypress trees, and plaza props
+    """
+    build_region_ground_grid(collector, 280.0, 560.0, -425.0, -45.0, step=5.5)
+
+    # 1. Southern Ottoman City Wall (`Segment 2` part 1 of `5862586`)
+    south_wall_pts = [
+        (286.5, -407.1),
+        (292.1, -389.2),
+        (314.4, -392.4),
+        (320.2, -372.4),
+        (356.1, -380.4),
+        (381.9, -374.1),
+        (430.9, -342.4),
+        (441.0, -359.0),
+        (461.4, -346.6),
+        (445.0, -315.4),
+        (452.3, -298.2),
+        (514.2, -267.9),
+        (526.3, -257.3),
+        (560.0, -224.0),
+    ]
+    build_ottoman_wall_polyline(
+        collector,
+        south_wall_pts,
+        wall_height=12.0,
+        thickness=3.1,
+        bastion_every=3,
+    )
+
+    # 2. Hurva Synagogue, Hurva Square, Southern Roman Cardo & Four Sephardic Synagogues
+    _build_hurva_synagogue_and_roman_cardo(collector, sign_atlas)
+
+    # 3. OSM Buildings in `r05_jewish_quarter`
+    clear_scene_building_rings()
+    osm_buildings = [
+        b for b in osm_data.get("buildings", [])
+        if b.get("region") == "r05_jewish_quarter"
+    ]
+    valid_blds = []
+    for b in osm_buildings:
+        osm_id = int(b.get("osm_id", 0))
+        if osm_id in (5862586, 7880713, 45081545):
+            continue
+        cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
+        # Keep Hurva Synagogue & Hurva Square (`x = 328..386, y = -158..-94`) clear
+        if 328.0 <= cx <= 386.0 and -158.0 <= cy <= -94.0:
+            continue
+        # Keep Southern Roman Cardo corridor (`x = 298..318, y = -198..-52`) clear
+        if 298.0 <= cx <= 318.0 and -198.0 <= cy <= -52.0:
+            continue
+        # Keep Four Sephardic Synagogues (`x = 350..382, y = -252..-224`) clear
+        if 350.0 <= cx <= 382.0 and -252.0 <= cy <= -224.0:
+            continue
+        # Keep Hezekiah's Broad Wall (`x = 326..344, y = -90..-66`) clear
+        if 326.0 <= cx <= 344.0 and -90.0 <= cy <= -66.0:
+            continue
+        ring = b.get("ring", [])
+        if len(ring) < 3:
+            continue
+        rxs = [float(p[0]) for p in ring]
+        rys = [float(p[1]) for p in ring]
+        if (max(rxs) - min(rxs)) > 65.0 or (max(rys) - min(rys)) > 65.0:
+            continue
+        valid_blds.append(b)
+        register_scene_building_ring(osm_id, ring)
+
+    built_count = 0
+    for idx, b in enumerate(valid_blds):
+        ring = b.get("ring", [])
+        cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
+        bz = street_elevation_z(cx, cy)
+        lvls = max(2, min(3, int(b.get("levels", 2))))
+        build_building_from_footprint(
+            collector,
+            ring,
+            base_z=bz,
+            levels=lvls,
+            sign_atlas=sign_atlas,
+            building_id=int(b.get("osm_id", idx)),
+            is_hero=False,
+        )
+        built_count += 1
+
+    # 4. Hurva Square & Jewish Quarter Trees and Street Lamps
+    jq_trees = [
+        (336.0, -112.0, "olive", 6.5, 601),
+        (358.0, -112.0, "olive", 6.8, 602),
+        (368.0, -122.0, "cypress", 10.5, 603),
+        (352.0, -218.0, "olive", 6.2, 604),
+        (415.0, -165.0, "cypress", 11.0, 605),
+        (465.0, -195.0, "olive", 6.4, 606),
+    ]
+    for tx, ty, sp, th, seed in jq_trees:
+        tz = street_elevation_z(tx, ty)
+        if sp == "cypress":
+            build_cypress_tree(collector, tx, ty, tz, height=th, seed=seed, with_kerb=True)
+        else:
+            build_olive_tree(collector, tx, ty, tz, height=th, seed=seed, with_kerb=True)
+
+    for lx, ly in ((340.0, -104.0), (354.0, -104.0), (372.0, -108.0), (308.0, -120.0), (308.0, -160.0)):
+        build_street_lamp(collector, lx, ly, street_elevation_z(lx, ly), height=4.3)
+
+    return built_count
+
+
 def build_additional_region(
     region_id: str,
     collector: MeshCollector,
@@ -1391,5 +1942,9 @@ def build_additional_region(
 ) -> int:
     if region_id == "r03_central_souqs":
         return build_region_r03_central_souqs(collector, osm_data, sign_atlas)
+    if region_id == "r04_armenian_quarter":
+        return build_region_r04_armenian_quarter(collector, osm_data, sign_atlas)
+    if region_id == "r05_jewish_quarter":
+        return build_region_r05_jewish_quarter(collector, osm_data, sign_atlas)
     raise ValueError(f"Unknown region_id: {region_id}")
 
