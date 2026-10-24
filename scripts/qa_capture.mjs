@@ -1,17 +1,31 @@
 #!/usr/bin/env node
 /**
- * Automated Headless Browser QA Capture & Side-by-Side Comparison Harness
+ * Automated Headless Browser QA Capture & Self-Critique Defect Detection Harness
  * Uses google-chrome-stable via raw Chrome DevTools WebSocket protocol (zero extra npm dependencies).
  *
- * Captures:
+ * Captures 30 Viewpoints:
  *  - 10 recognizable reference places from public/data/places.json
- *  - 10 additional multi-angle walker viewpoints across the Jaffa Gate district (20 views total)
- *  - For each view:
- *      <id>_model.png   (normal PBR render)
- *      <id>_jitter.png  (+1cm camera jitter frame for z-fighting detection)
- *      <id>_skykey.png  (bright magenta below-horizon skykey for ground-hole detection)
- *      traceView(6, 4)  (scene manifest object/rule/material coverage)
- *  - Builds side-by-side REAL | MODEL comparison images (pair_<id>.jpg) and contact sheets!
+ *  - 10 multi-angle walker viewpoints across the Jaffa Gate district
+ *  - 10 diagnostic look-up / look-down / close-up inspection viewpoints (diag_21 .. diag_30)
+ *
+ * For each view, captures:
+ *  - <id>_model.png   (normal PBR render)
+ *  - <id>_jitter.png  (+1cm camera jitter frame for localized 32x32 block z-fighting detection)
+ *  - <id>_skykey.png  (bright magenta below-horizon skykey for ground-hole detection)
+ *  - traceView(6, 4)  (scene manifest object/rule/material coverage)
+ *
+ * Runs automated image-level defect detectors:
+ *  - maxBlockFlickerPct (32x32 local block Z-fighting detector with 1px parallax compensation)
+ *  - flatPatchPct       (16x16 untextured solid-color polygon detector)
+ *  - uvStreakScore      (32x32 directional Sobel 1D UV stripe/streak detector)
+ *  - groundHoleFraction (below-horizon magenta sky-leak detector)
+ *
+ * Outputs:
+ *  - captured.json & qa_automated_audit.json
+ *  - pair_<id>.jpg (REAL | MODEL side-by-side comparisons)
+ *  - contact_sheet_pairs.jpg
+ *  - contact_sheet_20views.jpg
+ *  - contact_sheet_diagnostics.jpg (10 diagnostic close-up/look-up views with defect metrics)
  */
 
 import fs from 'node:fs';
@@ -24,7 +38,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 
-// 10 additional multi-angle walker viewpoints across the district (complementing the 10 places in places.json)
+// 10 additional multi-angle walker viewpoints across the district
 const EXTRA_WALKER_VIEWPOINTS = [
   {
     id: 'walker_11_mamilla_steps_up',
@@ -69,8 +83,8 @@ const EXTRA_WALKER_VIEWPOINTS = [
   {
     id: 'walker_15_armenian_road_south',
     name: 'Armenian Patriarchate Road Along Citadel East Glacis',
-    x: 59.5,
-    y: -32.0,
+    x: 68.0,
+    y: -18.0,
     z_eye: 1.7,
     heading: 185.0,
     pitch: 4.0,
@@ -79,8 +93,8 @@ const EXTRA_WALKER_VIEWPOINTS = [
   {
     id: 'walker_16_armenian_road_north_lookback',
     name: 'Armenian Patriarchate Road Looking North to Omar Square',
-    x: 59.5,
-    y: -48.0,
+    x: 68.0,
+    y: -34.0,
     z_eye: 1.7,
     heading: 355.0,
     pitch: 5.0,
@@ -125,6 +139,160 @@ const EXTRA_WALKER_VIEWPOINTS = [
     heading: 178.0,
     pitch: 2.0,
     fov: 70.0
+  }
+];
+
+// 10 Diagnostic Look-Up, Look-Down & Close-Up Inspection Viewpoints (diag_21 .. diag_30)
+const DIAGNOSTIC_VIEWPOINTS = [
+  {
+    id: 'diag_21_gate_portal_lookup',
+    name: 'DIAG: Jaffa Gate Outer Portal Look-Up (Arch & Machicolations)',
+    x: -14.4,
+    y: 0.6,
+    z_eye: 1.7,
+    heading: 80.0,
+    pitch: 38.0,
+    fov: 65.0
+  },
+  {
+    id: 'diag_22_gate_passage_ceiling',
+    name: 'DIAG: Jaffa Gate Interior Vault Ceiling & Doors Look-Up',
+    x: -6.5,
+    y: 1.7,
+    z_eye: 1.7,
+    heading: 85.0,
+    pitch: 38.0,
+    fov: 68.0
+  },
+  {
+    id: 'diag_23_gate_curb_clutter',
+    name: 'DIAG: Jaffa Gate Portal Curb & Corner Clutter Close-Up',
+    x: -13.0,
+    y: 3.0,
+    z_eye: 1.7,
+    heading: 55.0,
+    pitch: -24.0,
+    fov: 50.0
+  },
+  {
+    id: 'diag_24_david_st_pier_closeup',
+    name: 'DIAG: David Street Shop Pier, Awning & Display Close-Up',
+    x: 86.0,
+    y: 2.0,
+    z_eye: 1.7,
+    heading: 35.0,
+    pitch: -6.0,
+    fov: 50.0
+  },
+  {
+    id: 'diag_25_petra_corner_door',
+    name: 'DIAG: Petra Hotel Corner Arched Door, Shutters & Kerb Close-Up',
+    x: 55.5,
+    y: -1.5,
+    z_eye: 1.7,
+    heading: 15.0,
+    pitch: -4.0,
+    fov: 50.0
+  },
+  {
+    id: 'diag_26_imperial_arcade_closeup',
+    name: 'DIAG: New Imperial Hotel Ground Arcade & Balconies Close-Up',
+    x: 34.0,
+    y: 8.5,
+    z_eye: 1.7,
+    heading: 15.0,
+    pitch: 18.0,
+    fov: 55.0
+  },
+  {
+    id: 'diag_27_moat_bridge_portal_closeup',
+    name: 'DIAG: Citadel Moat Bridge Entrance Portal & Railing Close-Up',
+    x: 43.8,
+    y: -22.0,
+    z_eye: 1.7,
+    heading: 195.0,
+    pitch: 6.0,
+    fov: 55.0
+  },
+  {
+    id: 'diag_28_latin_lane_arch_lookup',
+    name: 'DIAG: Latin Patriarchate Flying-Buttress Arch Underside Look-Up',
+    x: 26.5,
+    y: 32.0,
+    z_eye: 1.7,
+    heading: 0.0,
+    pitch: 35.0,
+    fov: 65.0
+  },
+  {
+    id: 'diag_29_david_steps_down_closeup',
+    name: 'DIAG: David Street Stepped Paving & Souq Stalls Look-Down',
+    x: 92.0,
+    y: 2.0,
+    z_eye: 1.7,
+    heading: 90.0,
+    pitch: -22.0,
+    fov: 55.0
+  },
+  {
+    id: 'diag_30_citadel_glacis_corner',
+    name: 'DIAG: Citadel Sloped Stone Glacis & Moat Floor Close-Up',
+    x: 14.0,
+    y: -14.0,
+    z_eye: 1.7,
+    heading: 155.0,
+    pitch: -16.0,
+    fov: 55.0
+  },
+  {
+    id: 'diag_31_plaza_floating_strips',
+    name: 'DIAG: Jaffa Gate West Plaza Paving & Lamppost Bases Look-Down',
+    x: -18.0,
+    y: 3.5,
+    z_eye: 1.6,
+    heading: 95.0,
+    pitch: -18.0,
+    fov: 60.0
+  },
+  {
+    id: 'diag_32_gate_south_exit_arch',
+    name: 'DIAG: Jaffa Gate South Exit Portal Arch & Spandrel Look-Up',
+    x: 1.5,
+    y: -10.5,
+    z_eye: 1.7,
+    heading: 15.0,
+    pitch: 18.0,
+    fov: 65.0
+  },
+  {
+    id: 'diag_33_swedish_study_keystone',
+    name: 'DIAG: Swedish Study Centre Sign vs Arch Keystone Close-Up',
+    x: 49.0,
+    y: -1.0,
+    z_eye: 1.7,
+    heading: 35.0,
+    pitch: 12.0,
+    fov: 55.0
+  },
+  {
+    id: 'diag_34_concave_corner_arches',
+    name: 'DIAG: Concave Building Corner Shop Bay Junction (E+52.5, N+13.9)',
+    x: 52.5,
+    y: 13.9,
+    z_eye: 1.7,
+    heading: 36.0,
+    pitch: 0.0,
+    fov: 65.0
+  },
+  {
+    id: 'diag_35_east_omar_wall_junction',
+    name: 'DIAG: East Omar Square Building Junction (E+76.8, N+7.9)',
+    x: 76.8,
+    y: 7.9,
+    z_eye: 1.7,
+    heading: 66.0,
+    pitch: 2.0,
+    fov: 65.0
   }
 ];
 
@@ -271,14 +439,14 @@ async function launchHeadlessChrome(debugPort) {
     '--no-sandbox',
     '--disable-setuid-sandbox',
     '--disable-dev-shm-usage',
-    '--enable-gpu',
+    '--enable-webgl',
     '--ignore-gpu-blocklist',
-    '--use-angle=gl',
+    '--use-gl=angle',
+    '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader',
     '--window-size=1280,800',
     '--hide-scrollbars',
     '--mute-audio',
-    '--disable-background-timer-throttling',
-    '--disable-renderer-backgrounding',
     `--remote-debugging-port=${debugPort}`,
     `--user-data-dir=${userDataDir}`,
     'about:blank'
@@ -289,7 +457,6 @@ async function launchHeadlessChrome(debugPort) {
     : 'google-chrome-stable';
 
   const proc = spawn(chromeBin, chromeArgs, {
-    env: { ...process.env, DRI_PRIME: '1' },
     stdio: ['ignore', 'pipe', 'pipe']
   });
 
@@ -321,13 +488,14 @@ async function launchHeadlessChrome(debugPort) {
   };
 }
 
-function buildCompositesAndMetrics(outDir, placesPath) {
+function buildCompositesAndMetrics(outDir) {
   const pyBin = fs.existsSync(path.join(ROOT_DIR, '.venv/bin/python'))
     ? path.join(ROOT_DIR, '.venv/bin/python')
     : 'python3';
 
   const pyCode = `
 import sys, os, json, math
+import numpy as np
 from PIL import Image, ImageDraw, ImageOps
 
 out_dir = sys.argv[1]
@@ -340,6 +508,8 @@ with open(captured_path, "r", encoding="utf-8") as f:
 views = data.get("views", [])
 pair_images = []
 model_thumbs = []
+diag_thumbs = []
+flagged_issues = []
 
 for v in views:
     vid = v["id"]
@@ -351,47 +521,143 @@ for v in views:
         continue
 
     im_model = Image.open(model_p).convert("RGB")
-    w, h = im_model.size
+    arr_m = np.asarray(im_model, dtype=np.float32) # (800, 1280, 3)
+    H, W, _ = arr_m.shape
+    luma_m = 0.299 * arr_m[:, :, 0] + 0.587 * arr_m[:, :, 1] + 0.114 * arr_m[:, :, 2]
+    mean_luma = float(np.mean(luma_m))
 
-    # Compute brightness & RGB variance
-    small = im_model.resize((160, 100), Image.Resampling.BILINEAR)
-    px = list(small.getdata())
-    mean_r = sum(p[0] for p in px) / len(px)
-    mean_g = sum(p[1] for p in px) / len(px)
-    mean_b = sum(p[2] for p in px) / len(px)
-    mean_luma = 0.299 * mean_r + 0.587 * mean_g + 0.114 * mean_b
-
-    # Compute 1cm jitter diff (z-fighting / shimmer check)
-    jitter_diff = 0.0
-    if os.path.exists(jitter_p):
-        im_jit = Image.open(jitter_p).convert("RGB").resize((160, 100), Image.Resampling.BILINEAR)
-        px_j = list(im_jit.getdata())
-        diffs = [abs(a[0]-b[0]) + abs(a[1]-b[1]) + abs(a[2]-b[2]) for a, b in zip(px, px_j)]
-        jitter_diff = round(sum(diffs) / (len(diffs) * 3.0 * 255.0), 5)
-
-    # Compute skykey below-horizon magenta hole fraction
+    # Identify non-sky mask (either from skykey or top-sky blue/horizon heuristic)
+    # In skykey image, below-horizon holes are pure magenta (R>220, G<35, B>220)
     hole_fraction = 0.0
     if os.path.exists(skykey_p):
-        im_sky = Image.open(skykey_p).convert("RGB").resize((160, 100), Image.Resampling.NEAREST)
-        px_s = list(im_sky.getdata())
-        # Check lower half of image for bright magenta (R > 220, G < 35, B > 220)
-        lower_px = px_s[len(px_s)//2:]
-        magenta_hits = sum(1 for p in lower_px if p[0] > 220 and p[1] < 35 and p[2] > 220)
-        hole_fraction = round(magenta_hits / max(1, len(lower_px)), 5)
+        arr_sky = np.asarray(Image.open(skykey_p).convert("RGB"), dtype=np.uint8)
+        lower_sky = arr_sky[H // 2 :, :, :]
+        mag_mask = (lower_sky[:, :, 0] > 220) & (lower_sky[:, :, 1] < 35) & (lower_sky[:, :, 2] > 220)
+        hole_fraction = round(float(np.mean(mag_mask)), 5)
+
+    # 1. Local 32x32 Block Z-Fighting Detector (maxBlockFlickerPct)
+    # Uses 1-pixel neighborhood shift compensation so normal 1px parallax on edges is ignored,
+    # while true coplanar Z-fighting flicker inside 32x32 blocks is caught accurately.
+    jitter_diff = 0.0
+    max_block_flicker_pct = 0.0
+    max_block_coords = [0, 0]
+
+    if os.path.exists(jitter_p):
+        arr_j = np.asarray(Image.open(jitter_p).convert("RGB"), dtype=np.float32)
+        raw_diff = np.mean(np.abs(arr_m - arr_j), axis=2)
+        jitter_diff = round(float(np.mean(raw_diff) / 255.0), 5)
+
+        # Compute spatial gradient magnitude on luma_m to mask out sharp silhouette edges
+        gx_m = np.zeros_like(luma_m)
+        gy_m = np.zeros_like(luma_m)
+        gx_m[:, 1:-1] = np.abs(luma_m[:, 2:] - luma_m[:, :-2]) * 0.5
+        gy_m[1:-1, :] = np.abs(luma_m[2:, :] - luma_m[:-2, :]) * 0.5
+        edge_mag = np.hypot(gx_m, gy_m)
+
+        # Shift-compensated minimum difference over 3x3 neighborhood
+        min_nbr_diff = raw_diff.copy()
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dx == 0 and dy == 0:
+                    continue
+                shifted = np.roll(np.roll(arr_m, dy, axis=0), dx, axis=1)
+                d_nbr = np.mean(np.abs(arr_j - shifted), axis=2)
+                min_nbr_diff = np.minimum(min_nbr_diff, d_nbr)
+
+        # A pixel is flickering (Z-fighting) if its shift-compensated diff > 18.0
+        # OR (raw_diff > 18.0 and it is NOT on a high-contrast silhouette edge: edge_mag < 14.0)
+        flicker_mask = ((min_nbr_diff > 18.0) | ((raw_diff > 18.0) & (edge_mag < 14.0))).astype(np.float32)
+        # Zero out 2px image border from np.roll
+        flicker_mask[:2, :] = 0.0
+        flicker_mask[-2:, :] = 0.0
+        flicker_mask[:, :2] = 0.0
+        flicker_mask[:, -2:] = 0.0
+
+        # Reshape into 32x32 blocks (25 rows x 40 cols for 800x1280)
+        bh, bw = 32, 32
+        grid_h, grid_w = H // bh, W // bw
+        blocks = flicker_mask[: grid_h * bh, : grid_w * bw].reshape(grid_h, bh, grid_w, bw)
+        block_means = blocks.mean(axis=(1, 3)) # (25, 40)
+        max_idx = int(np.argmax(block_means))
+        by, bx = divmod(max_idx, grid_w)
+        max_block_flicker_pct = round(float(block_means[by, bx] * 100.0), 2)
+        max_block_coords = [int(bx), int(by)]
+
+    # 2. Untextured / Flat Solid Patch Detector (flatPatchPct) in lower 75% of frame (16x16 blocks)
+    y_start = H // 4
+    sub_luma = luma_m[y_start:, :]
+    sub_rgb = arr_m[y_start:, :, :]
+    fb_s = 16
+    f_gh = sub_luma.shape[0] // fb_s
+    f_gw = sub_luma.shape[1] // fb_s
+    luma_blocks = sub_luma[: f_gh * fb_s, : f_gw * fb_s].reshape(f_gh, fb_s, f_gw, fb_s)
+    b_std = luma_blocks.std(axis=(1, 3))
+    b_mean = luma_blocks.mean(axis=(1, 3))
+
+    # Exclude sky pixels (blue > red + 22 and luma > 135) and deep shadow / blown highlights
+    r_blocks = sub_rgb[: f_gh * fb_s, : f_gw * fb_s, 0].reshape(f_gh, fb_s, f_gw, fb_s).mean(axis=(1, 3))
+    b_blocks = sub_rgb[: f_gh * fb_s, : f_gw * fb_s, 2].reshape(f_gh, fb_s, f_gw, fb_s).mean(axis=(1, 3))
+    is_sky_block = (b_blocks > r_blocks + 22.0) & (b_mean > 135.0)
+    valid_geo_block = (~is_sky_block) & (b_mean > 24.0) & (b_mean < 242.0)
+
+    valid_count = int(np.sum(valid_geo_block))
+    if valid_count > 0:
+        flat_blocks = valid_geo_block & (b_std < 1.1)
+        flat_patch_pct = round(float(np.sum(flat_blocks) / valid_count * 100.0), 2)
+    else:
+        flat_patch_pct = 0.0
+
+    # 3. 1D UV Streak / Stripe Detector (uvStreakScore) in 32x32 blocks
+    gx_full = np.abs(luma_m[:, 2:] - luma_m[:, :-2]) * 0.5
+    gy_full = np.abs(luma_m[2:, :] - luma_m[:-2, :]) * 0.5
+    gx_pad = np.pad(gx_full, ((0, 0), (1, 1)), mode="edge")
+    gy_pad = np.pad(gy_full, ((1, 1), (0, 0)), mode="edge")
+
+    bh, bw = 32, 32
+    grid_h, grid_w = H // bh, W // bw
+    gx_blk = gx_pad[: grid_h * bh, : grid_w * bw].reshape(grid_h, bh, grid_w, bw).mean(axis=(1, 3))
+    gy_blk = gy_pad[: grid_h * bh, : grid_w * bw].reshape(grid_h, bh, grid_w, bw).mean(axis=(1, 3))
+    energy_blk = gx_blk + gy_blk
+    active_tex = energy_blk > 6.0
+    if np.any(active_tex):
+        aniso = np.maximum(gx_blk, gy_blk) / (np.minimum(gx_blk, gy_blk) + 0.75)
+        # Blocks with extreme 1D stripe ratio > 5.5
+        streak_blocks = active_tex & (aniso > 5.5)
+        uv_streak_score = round(float(np.sum(streak_blocks) / np.sum(active_tex) * 100.0), 2)
+    else:
+        uv_streak_score = 0.0
 
     v["metrics"] = {
         "meanLuma": round(mean_luma, 2),
         "jitterDiff": jitter_diff,
+        "maxBlockFlickerPct": max_block_flicker_pct,
+        "maxBlockFlickerCoords": max_block_coords,
+        "flatPatchPct": flat_patch_pct,
+        "uvStreakScore": uv_streak_score,
         "groundHoleFraction": hole_fraction
     }
 
-    # Build annotated thumbnail for 20-view contact sheet
+    if max_block_flicker_pct > 15.0 or flat_patch_pct > 8.0 or hole_fraction > 0.001 or uv_streak_score > 12.0:
+        flagged_issues.append({
+            "id": vid,
+            "name": v["name"],
+            "metrics": v["metrics"]
+        })
+
+    # Build annotated thumbnail
     thumb = im_model.resize((420, 262), Image.Resampling.LANCZOS)
     draw_t = ImageDraw.Draw(thumb)
-    draw_t.rectangle([0, 0, 420, 28], fill=(16, 18, 24))
-    label = f"{v['index']:02d}. {vid} ({v['pose']['x']:.0f},{v['pose']['y']:.0f} hdg {v['pose']['heading']:.0f}deg)"
-    draw_t.text((8, 7), label[:52], fill=(243, 200, 120))
-    model_thumbs.append(thumb)
+    draw_t.rectangle([0, 0, 420, 44], fill=(14, 16, 22))
+    label1 = f"{v['index']:02d}. {vid} ({v['pose']['x']:.1f},{v['pose']['y']:.1f} hdg {v['pose']['heading']:.0f} p {v['pose']['pitch']:.0f})"
+    label2 = f"Flicker:{max_block_flicker_pct:.1f}% | Flat:{flat_patch_pct:.1f}% | UV:{uv_streak_score:.1f}% | Hole:{hole_fraction*100:.2f}%"
+    status_col = (110, 240, 145) if (max_block_flicker_pct <= 15.0 and flat_patch_pct <= 8.0 and hole_fraction <= 0.001) else (255, 130, 110)
+    draw_t.text((8, 5), label1[:54], fill=(243, 200, 120))
+    draw_t.text((8, 23), label2[:58], fill=status_col)
+
+    if v.get("isDiagnostic"):
+        diag_thumbs.append(thumb)
+    else:
+        model_thumbs.append(thumb)
 
     # If reference photo exists, build side-by-side REAL | MODEL pair_<id>.jpg
     ref_candidates = [
@@ -422,6 +688,40 @@ for v in views:
 with open(captured_path, "w", encoding="utf-8") as f:
     json.dump(data, f, indent=2)
 
+# Write qa_automated_audit.json
+audit_summary = {
+    "auditedAt": data.get("capturedAt"),
+    "totalViews": len(views),
+    "diagnosticViewsCount": len(diag_thumbs),
+    "sceneAudit": data.get("sceneAudit", {}),
+    "maxBlockFlickerAcrossAllViews": max((v.get("metrics", {}).get("maxBlockFlickerPct", 0.0) for v in views), default=0.0),
+    "maxFlatPatchAcrossAllViews": max((v.get("metrics", {}).get("flatPatchPct", 0.0) for v in views), default=0.0),
+    "maxGroundHoleAcrossAllViews": max((v.get("metrics", {}).get("groundHoleFraction", 0.0) for v in views), default=0.0),
+    "flaggedIssuesCount": len(flagged_issues),
+    "flaggedIssues": flagged_issues,
+    "views": [
+        {
+            "index": v["index"],
+            "id": v["id"],
+            "name": v["name"],
+            "isDiagnostic": v.get("isDiagnostic", False),
+            "pose": v["pose"],
+            "metrics": v.get("metrics", {})
+        }
+        for v in views
+    ]
+}
+audit_path = os.path.join(out_dir, "qa_automated_audit.json")
+with open(audit_path, "w", encoding="utf-8") as f:
+    json.dump(audit_summary, f, indent=2)
+
+# Also copy qa_automated_audit.json to root_dir/qa_automated_audit.json for easy pipeline inspection
+try:
+    with open(os.path.join(root_dir, "qa_automated_audit.json"), "w", encoding="utf-8") as f:
+        json.dump(audit_summary, f, indent=2)
+except Exception:
+    pass
+
 # Build contact_sheet_pairs.jpg (2 columns x 5 rows of REAL | MODEL pairs)
 if pair_images:
     pw, ph = pair_images[0].size
@@ -436,7 +736,7 @@ if pair_images:
         sheet_pairs.paste(resized, (8 + c * sw, 8 + r * sh))
     sheet_pairs.save(os.path.join(out_dir, "contact_sheet_pairs.jpg"), quality=88)
 
-# Build contact_sheet_20views.jpg (4 columns x 5 rows of all 20 views)
+# Build contact_sheet_20views.jpg (4 columns x 5 rows of the 20 standard views)
 if model_thumbs:
     tw, th = model_thumbs[0].size
     cols = 4
@@ -446,6 +746,17 @@ if model_thumbs:
         r, c = divmod(i, cols)
         sheet_all.paste(tim, (8 + c * (tw + 8), 8 + r * (th + 8)))
     sheet_all.save(os.path.join(out_dir, "contact_sheet_20views.jpg"), quality=88)
+
+# Build contact_sheet_diagnostics.jpg (2 columns x 5 rows of the 10 diagnostic close-up/look-up views)
+if diag_thumbs:
+    tw, th = diag_thumbs[0].size
+    cols = 2
+    rows = math.ceil(len(diag_thumbs) / cols)
+    sheet_diag = Image.new("RGB", (cols * (tw + 10) + 10, rows * (th + 10) + 10), (12, 14, 18))
+    for i, dim in enumerate(diag_thumbs):
+        r, c = divmod(i, cols)
+        sheet_diag.paste(dim, (10 + c * (tw + 10), 10 + r * (th + 10)))
+    sheet_diag.save(os.path.join(out_dir, "contact_sheet_diagnostics.jpg"), quality=90)
 `;
 
   execFileSync(pyBin, ['-c', pyCode, outDir, ROOT_DIR], { stdio: 'inherit' });
@@ -461,8 +772,9 @@ async function runCapture() {
     : [];
 
   const allViewpoints = [
-    ...referencePlaces.slice(0, 10).map((p) => ({ ...p, isReferencePlace: true })),
-    ...EXTRA_WALKER_VIEWPOINTS.map((p) => ({ ...p, isReferencePlace: false }))
+    ...referencePlaces.slice(0, 10).map((p) => ({ ...p, isReferencePlace: true, isDiagnostic: false })),
+    ...EXTRA_WALKER_VIEWPOINTS.map((p) => ({ ...p, isReferencePlace: false, isDiagnostic: false })),
+    ...DIAGNOSTIC_VIEWPOINTS.map((p) => ({ ...p, isReferencePlace: false, isDiagnostic: true }))
   ];
 
   const viteProc = await ensureViteServer(baseUrl);
@@ -503,8 +815,9 @@ async function runCapture() {
     if (!isReady) {
       throw new Error('Timed out waiting for window.__QA__.ready === true');
     }
-    console.log(`[QA] window.__QA__.ready is true. Capturing ${allViewpoints.length} viewpoints...`);
+    console.log(`[QA] window.__QA__.ready is true. Auditing scene & capturing ${allViewpoints.length} viewpoints...`);
 
+    const sceneAudit = await cdp.evaluate('window.__QA__.auditScene ? window.__QA__.auditScene() : {}');
     const capturedViews = [];
 
     for (let i = 0; i < allViewpoints.length; i++) {
@@ -521,20 +834,20 @@ async function runCapture() {
       // 1. Normal PBR frame + traceView(6, 4)
       await cdp.evaluate('window.__QA__.setSkyKey(false)');
       const actualPose = await cdp.evaluate(`window.__QA__.setPose(${JSON.stringify(poseArgs)})`);
-      await new Promise((r) => setTimeout(r, 80));
+      await new Promise((r) => setTimeout(r, 60));
 
       const modelFile = `${vp.id}_model.png`;
       await cdp.screenshotPng(path.join(outDir, modelFile));
       const trace = await cdp.evaluate('window.__QA__.traceView(6, 4)');
 
-      // 2. +1cm (0.01m) camera jitter frame for z-fighting detection
+      // 2. +0.5mm (0.0005m) camera depth perturbation for true coplanar 32x32 block z-fighting detection
       const jitterArgs = {
         ...poseArgs,
-        x: Number((poseArgs.x + 0.01).toFixed(4)),
-        y: Number((poseArgs.y + 0.01).toFixed(4))
+        x: Number((poseArgs.x + 0.0005).toFixed(5)),
+        y: Number((poseArgs.y + 0.0005).toFixed(5))
       };
       await cdp.evaluate(`window.__QA__.setPose(${JSON.stringify(jitterArgs)})`);
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 45));
 
       const jitterFile = `${vp.id}_jitter.png`;
       await cdp.screenshotPng(path.join(outDir, jitterFile));
@@ -542,7 +855,7 @@ async function runCapture() {
       // 3. Sky-key frame (magenta below horizon) for ground-hole detection
       await cdp.evaluate(`window.__QA__.setPose(${JSON.stringify(poseArgs)})`);
       await cdp.evaluate('window.__QA__.setSkyKey(true)');
-      await new Promise((r) => setTimeout(r, 50));
+      await new Promise((r) => setTimeout(r, 45));
 
       const skykeyFile = `${vp.id}_skykey.png`;
       await cdp.screenshotPng(path.join(outDir, skykeyFile));
@@ -553,6 +866,7 @@ async function runCapture() {
         id: vp.id,
         name: vp.name,
         isReferencePlace: vp.isReferencePlace,
+        isDiagnostic: vp.isDiagnostic,
         pose: actualPose,
         files: {
           model: modelFile,
@@ -571,15 +885,17 @@ async function runCapture() {
       capturedAt: new Date().toISOString(),
       totalViews: capturedViews.length,
       referencePlacesCount: referencePlaces.length,
+      diagnosticViewsCount: DIAGNOSTIC_VIEWPOINTS.length,
+      sceneAudit,
       views: capturedViews
     };
 
     const capturedJsonPath = path.join(outDir, 'captured.json');
     fs.writeFileSync(capturedJsonPath, JSON.stringify(report, null, 2));
 
-    console.log('[QA] Building REAL | MODEL comparison pairs and contact sheets...');
-    buildCompositesAndMetrics(outDir, placesPath);
-    console.log(`[QA] Done! Outputs written to ${outDir}`);
+    console.log('[QA] Running automated defect detectors & building contact sheets...');
+    buildCompositesAndMetrics(outDir);
+    console.log(`[QA] Done! Outputs & qa_automated_audit.json written to ${outDir}`);
   } finally {
     if (cdp) cdp.close();
     if (chrome?.proc) {

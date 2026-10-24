@@ -68,10 +68,10 @@
   {
     "id": "omar_square_north",
     "name": "New Imperial Hotel & Petra Hotel North Facades",
-    "x": 33.5,
-    "y": 1.5,
+    "x": 26.5,
+    "y": -1.5,
     "z_eye": 1.7,
-    "heading": 12.0,
+    "heading": 8.0,
     "pitch": 8.0,
     "fov": 70.0,
     "radius": 30.0
@@ -90,10 +90,10 @@
   {
     "id": "latin_patriarchate_lane",
     "name": "Latin Patriarchate Road",
-    "x": 26.5,
-    "y": 28.0,
+    "x": 24.0,
+    "y": 22.0,
     "z_eye": 1.7,
-    "heading": 358.0,
+    "heading": 0.0,
     "pitch": 4.0,
     "fov": 70.0,
     "radius": 25.0
@@ -101,7 +101,7 @@
   {
     "id": "david_street_souq",
     "name": "David Street Stepped Souq Entrance",
-    "x": 82.0,
+    "x": 78.2,
     "y": 2.0,
     "z_eye": 1.7,
     "heading": 90.0,

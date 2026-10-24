@@ -5,3 +5,7 @@ build/
 .DS_Store
 *.blend
 *.blend1
+__pycache__/
+*.pyc
+.wrangler/
+qa_automated_audit.json

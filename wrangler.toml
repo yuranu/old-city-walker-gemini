@@ -1,0 +1,11 @@
+name = "old-city-walker"
+compatibility_date = "2025-01-01"
+
+# Pure Static Assets mode: serves all files directly from Cloudflare's edge CDN
+# with zero Worker script invocations (staying 100% within the Cloudflare Free Plan).
+[assets]
+directory = "./dist"
+
+[[routes]]
+pattern = "old-city-walker.yuranu.com"
+custom_domain = true

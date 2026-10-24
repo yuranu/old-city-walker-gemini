@@ -37,8 +37,10 @@ from arch_rules import (
     build_citadel_and_tower_of_david,
     build_hero_omar_square_and_david_street,
     build_jaffa_gate_monument,
+    clear_scene_building_rings,
     corridor_distance,
     ensure_ccw_2d,
+    register_scene_building_ring,
 )
 from props_lib import (
     MeshCollector,
@@ -52,6 +54,7 @@ from props_lib import (
     build_street_trash_scatter,
     build_wheelie_bin,
 )
+from qa_mesh_linter import run_mesh_linter
 
 
 # ==============================================================================
@@ -295,23 +298,44 @@ def create_all_materials(tex_dir: Path) -> Dict[str, bpy.types.Material]:
         s_links.new(s_tex.outputs["Color"], s_bsdf.inputs["Base Color"])
     mats["mat_signs"] = mat_signs
 
-    # 4. Muted, Dusty Heritage Accent Materials (No cartoonish oversaturation)
-    mats["mat_iron_dark"] = make_solid_material("mat_iron_dark", (0.11, 0.12, 0.13), roughness=0.42, metallic=0.75)
-    mats["mat_trash_black"] = make_solid_material("mat_trash_black", (0.05, 0.055, 0.06), roughness=0.26, metallic=0.04)
-    mats["mat_trash_blue"] = make_solid_material("mat_trash_blue", (0.08, 0.16, 0.29), roughness=0.28, metallic=0.04)
-    mats["mat_cardboard"] = make_solid_material("mat_cardboard", (0.44, 0.34, 0.22), roughness=0.85)
-    mats["mat_terracotta"] = make_solid_material("mat_terracotta", (0.48, 0.24, 0.15), roughness=0.76)
-    mats["mat_awning_red"] = make_solid_material("mat_awning_red", (0.38, 0.11, 0.09), roughness=0.82)
-    mats["mat_awning_green"] = make_solid_material("mat_awning_green", (0.12, 0.24, 0.15), roughness=0.82)
-    mats["mat_awning_striped"] = make_solid_material("mat_awning_striped", (0.76, 0.71, 0.61), roughness=0.80)
-    mats["mat_corrugated_metal"] = make_solid_material("mat_corrugated_metal", (0.42, 0.44, 0.46), roughness=0.52, metallic=0.55)
-    mats["mat_lantern_glow"] = make_solid_material(
-        "mat_lantern_glow",
-        (0.98, 0.84, 0.50),
-        roughness=0.18,
-        emission_color=(0.98, 0.80, 0.42),
-        emission_strength=3.2,
+    # 4. Textured PBR Heritage Accent Materials (ZERO untextured solid materials!)
+    mats["mat_iron_dark"] = make_pbr_textured_material(
+        "mat_iron_dark", tex_dir, "metal_iron", normal_strength=0.95, metallic=0.72, fallback_prefix="steel_shutters"
     )
+    mats["mat_trash_black"] = make_pbr_textured_material(
+        "mat_trash_black", tex_dir, "trash_bag", normal_strength=1.10, metallic=0.02, fallback_prefix="stone_rubble"
+    )
+    mats["mat_trash_blue"] = make_pbr_textured_material(
+        "mat_trash_blue", tex_dir, "trash_blue", normal_strength=1.10, metallic=0.02, fallback_prefix="trash_bag"
+    )
+    mats["mat_cardboard"] = make_pbr_textured_material(
+        "mat_cardboard", tex_dir, "cardboard", normal_strength=0.95, metallic=0.0, fallback_prefix="wood_doors"
+    )
+    mats["mat_terracotta"] = make_pbr_textured_material(
+        "mat_terracotta", tex_dir, "terracotta", normal_strength=0.95, metallic=0.0, fallback_prefix="roof_tile"
+    )
+    mats["mat_awning_red"] = make_pbr_textured_material(
+        "mat_awning_red", tex_dir, "awning_red", normal_strength=0.90, metallic=0.0, fallback_prefix="plaster_warm"
+    )
+    mats["mat_awning_green"] = make_pbr_textured_material(
+        "mat_awning_green", tex_dir, "awning_green", normal_strength=0.90, metallic=0.0, fallback_prefix="plaster_warm"
+    )
+    mats["mat_awning_striped"] = make_pbr_textured_material(
+        "mat_awning_striped", tex_dir, "awning_striped", normal_strength=0.90, metallic=0.0, fallback_prefix="plaster_warm"
+    )
+    mats["mat_corrugated_metal"] = make_pbr_textured_material(
+        "mat_corrugated_metal", tex_dir, "corrugated_metal", normal_strength=1.15, metallic=0.55, fallback_prefix="steel_shutters"
+    )
+    mat_glow = make_pbr_textured_material(
+        "mat_lantern_glow", tex_dir, "plaster_warm", normal_strength=0.2, metallic=0.0, fallback_prefix="stone_ashlar"
+    )
+    glow_bsdf = mat_glow.node_tree.nodes.get("Principled BSDF")
+    if glow_bsdf is not None:
+        if "Emission Color" in glow_bsdf.inputs:
+            glow_bsdf.inputs["Emission Color"].default_value = (0.98, 0.80, 0.42, 1.0)
+        if "Emission Strength" in glow_bsdf.inputs:
+            glow_bsdf.inputs["Emission Strength"].default_value = 3.2
+    mats["mat_lantern_glow"] = mat_glow
 
     return mats
 
@@ -332,9 +356,11 @@ def build_continuous_ground_mesh(collector: MeshCollector) -> None:
     (smooth dressed Jerusalem flagstones for pedestrian plazas, Jaffa Gate passage, and souqs).
     """
     def is_in_moat_cutout(cx: float, cy: float) -> bool:
-        if 10.2 < cx < 53.8 and -55.8 < cy < -15.4:
-            if 41.8 <= cx <= 47.2 and -29.0 <= cy <= -15.0:
+        if 10.2 < cx < 53.8 and -29.8 < cy < -15.4:
+            if 41.8 <= cx <= 47.2 and -29.8 <= cy <= -15.0:
                 return False
+            return True
+        if 10.2 < cx < 17.5 and -75.8 < cy <= -29.8:
             return True
         return False
 
@@ -370,60 +396,28 @@ def build_continuous_ground_mesh(collector: MeshCollector) -> None:
             expected_normal=(0.0, 0.0, 1.0),
         )
 
-    # 1. Core Walkable Zone (`-60 <= x <= 130`, `-60 <= y <= 55`) at fine `2.5m` spacing
+    # 1. Core Walkable Zone (`-60 <= x <= 130`, `-80 <= y <= 55`) at fine `2.5m` spacing
     core_step = 2.5
     core_xs = [-60.0 + i * core_step for i in range(int(190.0 / core_step) + 1)]
-    core_ys = [-60.0 + j * core_step for j in range(int(115.0 / core_step) + 1)]
+    core_ys = [-80.0 + j * core_step for j in range(int(135.0 / core_step) + 1)]
     for j in range(len(core_ys) - 1):
         y0, y1 = core_ys[j], core_ys[j + 1]
         for i in range(len(core_xs) - 1):
             x0, x1 = core_xs[i], core_xs[i + 1]
             emit_ground_cell(x0, y0, x1, y1)
 
-    # 2. Outer Surround Zone (`-170..200` x `-170..170` outside `-60..130` x `-60..55`) at `10.0m` coarse spacing
+    # 2. Outer Surround Zone (`-170..200` x `-170..170` outside `-60..130` x `-80..55`) at `10.0m` coarse spacing
     outer_xs = [-170.0 + i * 10.0 for i in range(38)]
-    outer_ys = [-170.0 + j * 10.0 for j in range(11)] + [-60.0, -50.0, -40.0, -30.0, -20.0, -10.0, 0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 55.0, 65.0] + [70.0 + j * 10.0 for j in range(11)]
+    outer_ys = [-170.0 + j * 10.0 for j in range(9)] + [-80.0, -70.0, -60.0, -50.0, -40.0, -30.0, -20.0, -10.0, 0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 55.0, 65.0] + [70.0 + j * 10.0 for j in range(11)]
     for j in range(len(outer_ys) - 1):
         y0, y1 = outer_ys[j], outer_ys[j + 1]
         ym = 0.5 * (y0 + y1)
         for i in range(len(outer_xs) - 1):
             x0, x1 = outer_xs[i], outer_xs[i + 1]
             xm = 0.5 * (x0 + x1)
-            if -60.0 < xm < 130.0 and -60.0 < ym < 55.0:
+            if -60.0 < xm < 130.0 and -80.0 < ym < 55.0:
                 continue
             emit_ground_cell(x0, y0, x1, y1)
-
-    # Raised limestone sidewalk kerbs along West Plaza, 1898 Breach & Omar Square promenade
-    kerb_runs = [
-        ((-55.0, 7.5), (-9.0, 7.5), 1.8),
-        ((-55.0, -7.5), (-9.0, -7.5), 1.8),
-        ((10.5, -14.8), (41.5, -14.8), 2.2),
-        ((18.0, 13.8), (80.0, 13.8), 1.6),
-    ]
-    for (kx0, ky0), (kx1, ky1), kw in kerb_runs:
-        segs = 6
-        for s in range(segs):
-            t0 = s / segs
-            t1 = (s + 1) / segs
-            px0 = kx0 + (kx1 - kx0) * t0
-            py0 = ky0 + (ky1 - ky0) * t0
-            px1 = kx0 + (kx1 - kx0) * t1
-            py1 = ky0 + (ky1 - ky0) * t1
-            zm = street_elevation_z(0.5 * (px0 + px1), 0.5 * (py0 + py1))
-            collector.add_oriented_box(
-                "Ground_Paving",
-                "mat_stone_ashlar_aged",
-                (px0, py0),
-                (px1, py1),
-                zm - 0.15,
-                zm + 0.14,
-                -kw * 0.5,
-                kw * 0.5,
-                (0.0, 1.0),
-                uv_scale=0.35,
-                cap_back=True,
-                cap_ends=(s == 0 or s == segs - 1),
-            )
 
 
 def populate_street_props_and_trees(
@@ -434,19 +428,15 @@ def populate_street_props_and_trees(
     Populates geo-registered trees, ornate street lamps, bollards, garbage bag clusters,
     street trash/dirt scatters, wheelie bins, and cast-iron litter bins.
     """
-    # 1. Hero Curated Trees (Citadel Moat Promenade, Omar Square, West Plaza, Latin Patriarchate Rd)
+    # 1. Hero Curated Trees (keeping Omar Square & Latin Patriarchate Rd open, with tall Cypress beside inner Jaffa Gate!)
     hero_trees = [
-        (16.5, -12.2, "olive", 6.8, 1),
-        (24.5, -13.0, "cypress", 9.4, 2),
-        (33.2, -13.2, "olive", 7.0, 3),
-        (40.2, -13.0, "cypress", 9.0, 4),
-        (51.5, -12.5, "olive", 6.9, 5),
-        (29.0, 5.2, "olive", 7.4, 6),
-        (55.5, 4.8, "olive", 6.6, 7),
-        (-24.0, 10.5, "olive", 6.6, 8),
-        (-22.0, -4.5, "olive", 6.5, 9),
-        (-36.0, -14.0, "olive", 6.8, 10),
-        (21.2, 33.0, "cypress", 8.5, 11),
+        (7.2, 8.2, "cypress", 13.5, 1),
+        (9.2, 9.2, "cypress", 11.2, 2),
+        (68.5, -11.5, "olive", 6.2, 7),
+        (-26.5, 9.8, "olive", 6.2, 8),
+        (-19.5, 8.8, "olive", 5.8, 9),
+        (-22.0, -4.5, "olive", 6.2, 10),
+        (-36.0, -14.0, "olive", 6.6, 11),
     ]
     placed_xy: List[Tuple[float, float]] = []
 
@@ -462,11 +452,14 @@ def populate_street_props_and_trees(
         tx, ty = float(t["x"]), float(t["y"])
         if corridor_distance(tx, ty) > 55.0:
             continue
-        # Keep Jaffa Gate West Plaza portal sightline 100% unobstructed (`west_plaza` & `walker_11`)
-        if -45.0 <= tx <= 14.0 and -16.0 <= ty <= 12.0:
+        # Keep Jaffa Gate West Plaza portal sightline & Omar Square open
+        if -45.0 <= tx <= 75.0 and -16.0 <= ty <= 26.0:
             continue
-        # Keep Citadel moat & walls unobstructed
-        if 4.0 <= tx <= 64.0 and -85.0 <= ty <= -10.0:
+        # Keep Latin Patriarchate Road (`x = 18..30, y = 10..62`) 100% open (no street trees in narrow stone lane!)
+        if 18.0 <= tx <= 30.0 and 10.0 <= ty <= 62.0:
+            continue
+        # Keep Citadel moat & railing promenade (`y = -85 .. -7.0`) unobstructed from random OSM trees
+        if 4.0 <= tx <= 64.0 and -85.0 <= ty <= -7.0:
             continue
         if 72.0 <= tx <= 168.0 and -12.0 <= ty <= 16.0:
             continue
@@ -479,10 +472,10 @@ def populate_street_props_and_trees(
         else:
             build_olive_tree(collector, tx, ty, tz, height=6.5, seed=200 + idx, with_kerb=True)
         placed_xy.append((tx, ty))
-        if len(placed_xy) >= 26:
+        if len(placed_xy) >= 22:
             break
 
-    # 2. Limestone & Cast-Iron Bollards
+    # 2. Limestone & Cast-Iron Bollards (aligned with curb & piers, keeping Latin Patriarchate Rd `x=21.2..26.8` open!)
     bollard_coords = [
         (-13.5, -2.5, "stone"),
         (-13.5, -0.5, "stone"),
@@ -492,85 +485,81 @@ def populate_street_props_and_trees(
         (3.5, -10.5, "stone"),
         (6.8, -12.0, "stone"),
         (9.5, -13.2, "stone"),
-        (19.5, 12.8, "iron"),
-        (26.0, 12.8, "iron"),
-        (34.0, 12.8, "iron"),
-        (42.0, 12.8, "iron"),
-        (50.0, 12.8, "iron"),
-        (62.0, 10.5, "iron"),
-        (76.5, -1.2, "stone"),
-        (76.5, 5.2, "stone"),
+        (19.6, 7.8, "iron"),
+        (28.0, 9.2, "iron"),
+        (36.5, 9.2, "iron"),
+        (45.5, 9.8, "iron"),
+        (54.2, 8.8, "iron"),
+        (62.5, 8.4, "iron"),
+        (71.0, 8.4, "iron"),
+        (78.5, -0.8, "stone"),
+        (78.5, 4.8, "stone"),
     ]
     for bx, by, b_style in bollard_coords:
         bz = street_elevation_z(bx, by)
         build_bollard(collector, bx, by, bz, style=b_style)
 
-    # 3. Ornate Jerusalem Street Lamps (moved `(9.2, -13.8)` to `(2.5, -13.5)` so `tower_of_david` is unobstructed)
+    # 3. Ornate Jerusalem Street Lamps (set out on the curb and aligned with piers, never blocking shop arches!)
     lamp_coords = [
-        (-24.0, 7.2),
+        (-25.0, 11.2),
         (-14.5, 7.2),
         (-14.5, -6.5),
-        (5.5, 7.8),
+        (5.5, 7.5),
         (2.5, -13.5),
         (20.0, -13.8),
         (34.0, -13.8),
         (48.0, -13.8),
-        (21.0, 13.2),
-        (38.0, 13.2),
-        (58.0, 11.2),
-        (75.0, 8.5),
-        (20.5, 29.0),
-        (32.5, 42.0),
+        (19.6, 8.2),
+        (36.8, 9.8),
+        (54.2, 8.6),
+        (76.5, 8.2),
+        (21.8, 28.5),
+        (26.2, 41.2),
     ]
     for lx, ly in lamp_coords:
         lz = street_elevation_z(lx, ly)
         build_street_lamp(collector, lx, ly, lz, height=4.4)
 
-    # 4. Garbage Bag Clusters & Street Trash/Dirt Scatters
+    # 4. Garbage Bag Clusters & Street Trash/Dirt Scatters (aligned with building corners/curbs, never blocking shop doors!)
     garbage_spots = [
-        (5.2, 9.4, 0.3, 4),
-        (21.4, 14.2, -0.2, 4),
-        (50.4, 14.4, 0.8, 5),
-        (63.4, 11.2, 0.1, 4),
-        (56.6, -17.8, 1.2, 4),
-        (-8.8, -5.8, -0.5, 3),
-        (20.1, 26.5, 0.4, 4),
-        (83.5, 5.3, 0.0, 4),
-        (97.5, -1.3, 1.5, 4),
-        (114.5, 5.3, 0.2, 3),
-        (131.0, -1.3, -0.4, 4),
+        (5.8, 7.8, 0.3, 4),
+        (27.2, 9.6, -0.2, 4),
+        (53.8, 9.8, 0.8, 5),
+        (78.8, 8.4, 0.1, 4),
+        (61.2, -13.5, 1.2, 4),
+        (21.7, 25.5, 0.4, 4),
+        (83.5, 4.5, 0.0, 4),
+        (97.5, -0.5, 1.5, 4),
+        (114.5, 4.5, 0.2, 3),
+        (131.0, -0.5, -0.4, 4),
     ]
     for idx, (gx, gy, grot, gcnt) in enumerate(garbage_spots):
         gz = street_elevation_z(gx, gy)
         build_garbage_pile(collector, gx, gy, gz, rot_z=grot, bag_count=gcnt, seed=400 + idx)
 
-    # Street trash scatters (swept curb dirt patches, flattened cardboard, wrappers, cans, bags)
+    # Street trash scatters (swept curb dirt patches, flattened cardboard, bags)
     scatter_spots = [
-        (-11.0, -5.5, 2.0),    # West Plaza south curb
-        (-10.5, 6.2, 1.8),     # West Plaza north curb near Jaffa Gate
-        (-3.2, 0.9, 1.4),      # Jaffa Gate L-passage inner corner
-        (4.5, -6.2, 1.8),      # South exit of Jaffa Gate into Breach
-        (14.5, 9.5, 2.1),      # Tourist Info curb on Omar Square
-        (24.0, 14.0, 2.0),     # New Imperial Hotel curb
-        (46.0, 14.0, 2.2),     # East end of New Imperial Hotel
-        (66.0, 11.0, 2.0),     # Petra Hotel curb
-        (78.5, 5.2, 1.8),      # David Street Souq entrance north curb
-        (78.5, -1.5, 1.8),     # David Street Souq entrance south curb
-        (91.0, 5.2, 1.7),      # David Street steps north gutter
-        (106.0, -1.4, 1.7),    # David Street steps south gutter
-        (122.0, 5.2, 1.7),     # Lower David Street north gutter
-        (20.2, 32.0, 1.8),     # Latin Patriarchate Rd west gutter
-        (33.0, 39.0, 1.8),     # Latin Patriarchate Rd east gutter
+        (12.5, 7.8, 2.0),      # West wing curb on Omar Square
+        (31.5, 9.4, 1.8),      # Corner pavilion curb
+        (49.0, 10.0, 2.1),     # East end of New Imperial Hotel curb
+        (67.0, 8.5, 2.0),      # Petra Hotel curb
+        (78.8, 4.4, 1.6),      # David Street Souq entrance north curb
+        (78.8, -0.4, 1.6),     # David Street Souq entrance south curb
+        (91.0, 4.4, 1.5),      # David Street steps north gutter
+        (106.0, -0.4, 1.5),    # David Street steps south gutter
+        (122.0, 4.4, 1.5),     # Lower David Street north gutter
+        (21.9, 32.0, 1.5),     # Latin Patriarchate Rd west gutter
+        (26.1, 39.0, 1.5),     # Latin Patriarchate Rd east gutter
     ]
     for s_idx, (sx, sy, srad) in enumerate(scatter_spots):
         sz = street_elevation_z(sx, sy)
         build_street_trash_scatter(collector, sx, sy, sz, radius=srad, seed=600 + s_idx)
 
     wheelie_spots = [
-        (19.2, 10.2, 0.2),
-        (51.2, 15.2, -0.4),
-        (79.2, -4.8, 0.8),
-        (20.2, 38.0, 0.0),
+        (19.6, 8.6, 0.2),
+        (53.8, 10.2, -0.4),
+        (79.2, -3.5, 0.8),
+        (21.8, 38.0, 0.0),
     ]
     for wx, wy, wrot in wheelie_spots:
         wz = street_elevation_z(wx, wy)
@@ -578,12 +567,12 @@ def populate_street_props_and_trees(
 
     bin_spots = [
         (-11.5, 6.2),
-        (6.2, 6.5),
-        (27.5, 13.2),
-        (45.5, 13.2),
-        (68.0, 10.5),
-        (78.5, 5.5),
-        (105.0, 5.4),
+        (6.2, 7.5),
+        (27.5, 9.5),
+        (48.5, 10.0),
+        (55.2, 8.6),
+        (78.8, 4.6),
+        (105.0, 4.5),
     ]
     for sbx, sby in bin_spots:
         sbz = street_elevation_z(sbx, sby)
@@ -615,29 +604,34 @@ def should_skip_osm_building(b: dict) -> bool:
     if corridor_distance(cx, cy) > 95.0:
         return True
 
-    # 1. Jaffa Gate & 1898 Breach zone
-    if -18.0 <= cx <= 16.0 and -18.0 <= cy <= 14.0:
+    # 1. Jaffa Gate, West Plaza & 1898 Breach zone
+    if -58.0 <= cx <= 16.0 and -24.0 <= cy <= 14.0:
         return True
     # 2. Citadel, Widened Dry Moat & Moved Christian Information Centre zone
-    if 6.0 <= cx <= 86.0 and -95.0 <= cy <= -10.0:
+    if -8.0 <= cx <= 86.0 and -95.0 <= cy <= -10.0:
         return True
     # 3. Omar Square open plaza & Hero Hotel footprints
     if 4.0 <= cx <= 88.0 and -42.0 <= cy <= 29.0:
         return True
     # 4. Latin Patriarchate Rd lower & north closure hero corridor
-    if 7.0 <= cx <= 49.0 and 24.0 <= cy <= 72.0:
+    if 7.0 <= cx <= 49.0 and 22.0 <= cy <= 72.0:
         return True
     # 5. David Street stepped souq corridor (`x = 76..170, y = -13..17`)
     if 76.0 <= cx <= 170.0 and -13.0 <= cy <= 17.0:
         return True
+    # 6. Exclude any OSM building straddling or lying west of the Northern Old City Wall (`nw_wall_pts`)
+    if cy > 6.0 and cx < (-3.5 - (cy - 8.5) * 0.60 + 6.5):
+        return True
 
     for pt in b.get("ring", []):
         px, py = float(pt[0]), float(pt[1])
-        if -12.0 <= px <= 78.0 and -42.0 <= py <= 13.5:
+        if -12.0 <= px <= 82.0 and -78.0 <= py <= 13.5:
             return True
         if 76.0 <= px <= 166.0 and -4.5 <= py <= 8.5:
             return True
         if 14.0 <= px <= 40.0 and 12.0 <= py <= 72.0:
+            return True
+        if py > 6.0 and px < (-3.5 - (py - 8.5) * 0.60 + 5.5):
             return True
 
     return False
@@ -718,10 +712,17 @@ def main() -> None:
     print("[3/5] Building Citadel, Widened 13.5m Sunken Dry Moat, Glacis, Phasael Tower & Minaret...")
     build_citadel_and_tower_of_david(collector, sign_atlas)
 
+    # Pre-register all valid OSM building rings so `is_bay_clearance_valid` checks both hero & OSM neighbors!
+    clear_scene_building_rings()
+    osm_buildings = osm_data.get("buildings", [])
+    for idx, b in enumerate(osm_buildings):
+        if should_skip_osm_building(b):
+            continue
+        register_scene_building_ring(int(b.get("osm_id", idx)), b.get("ring", []))
+
     print("[4/5] Building Hero Omar Square Hotels, Latin Patriarchate Rd, David St & West Horizon...")
     build_hero_omar_square_and_david_street(collector, sign_atlas, street_elevation_z)
 
-    osm_buildings = osm_data.get("buildings", [])
     built_osm_count = 0
     for idx, b in enumerate(osm_buildings):
         if should_skip_osm_building(b):
@@ -750,6 +751,9 @@ def main() -> None:
     total_verts = sum(len(obj.data.vertices) for obj in created_objs)
     total_faces = sum(len(obj.data.polygons) for obj in created_objs)
     print(f"[MESH] Created {len(created_objs)} batched mesh objects ({total_verts:,} verts, {total_faces:,} faces).")
+
+    lint_report_path = ROOT_DIR / "public" / "data" / "mesh_lint_report.json"
+    lint_report = run_mesh_linter(created_objs, lint_report_path)
 
     print(f"[GLTF] Exporting {out_glb_path} (with COLOR_0 baked vertex AO/dirt)...")
     bpy.ops.export_scene.gltf(
