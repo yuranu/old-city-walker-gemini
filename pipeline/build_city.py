@@ -804,13 +804,28 @@ def main() -> None:
     osm_old_city = json.loads(osm_old_city_path.read_text(encoding="utf-8")) if osm_old_city_path.exists() else osm_jaffa
     sign_atlas = json.loads(sign_atlas_path.read_text(encoding="utf-8")) if sign_atlas_path.exists() else {}
 
+    all_region_ids = [
+        "r01_jaffa_gate",
+        "r02_christian_quarter",
+        "r03_central_souqs",
+        "r04_armenian_quarter",
+        "r05_jewish_quarter",
+        "r06_western_wall_dung_gate",
+        "r07_temple_mount",
+        "r08_muslim_quarter_north_gates",
+    ]
     target_regions = ["r01_jaffa_gate"]
     if "--" in sys.argv:
         extra_args = sys.argv[sys.argv.index("--") + 1 :]
         for idx, arg in enumerate(extra_args):
-            if arg == "--region" and idx + 1 < len(extra_args):
+            if arg == "--all-regions":
+                target_regions = list(all_region_ids)
+            elif arg == "--region" and idx + 1 < len(extra_args):
                 val = extra_args[idx + 1]
-                target_regions = [r.strip() for r in val.split(",") if r.strip()]
+                if val.strip() == "all":
+                    target_regions = list(all_region_ids)
+                else:
+                    target_regions = [r.strip() for r in val.split(",") if r.strip()]
 
     last_stats = None
     for reg_id in target_regions:
