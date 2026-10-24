@@ -1,0 +1,45 @@
+{
+  "title": "Old City of Jerusalem — Points of Interest (Gates, Temples & Touristic Spots)",
+  "groups": [
+    {
+      "category": "gates",
+      "name": "The 8 Historic Gates of the Old City",
+      "pois": [
+        {"id": "jaffa_gate", "name": "Jaffa Gate (Bab el-Khalil) & 1898 Breach", "region": "r01_jaffa_gate", "x": 0.0, "y": 2.5},
+        {"id": "new_gate", "name": "New Gate (Bab al-Jadid)", "region": "r02_christian_quarter", "x": -141.1, "y": 297.9},
+        {"id": "damascus_gate", "name": "Damascus Gate (Bab al-Amud)", "region": "r08_muslim_quarter_north_gates", "x": 254.1, "y": 557.2},
+        {"id": "herods_gate", "name": "Herod's Gate (Bab al-Zahra)", "region": "r08_muslim_quarter_north_gates", "x": 568.0, "y": 702.3},
+        {"id": "lions_gate", "name": "Lions' Gate (Bab al-Asbat)", "region": "r08_muslim_quarter_north_gates", "x": 875.8, "y": 467.0},
+        {"id": "golden_gate", "name": "Golden Gate (Bab al-Rahma)", "region": "r07_temple_mount", "x": 894.6, "y": 260.8},
+        {"id": "dung_gate", "name": "Dung Gate (Bab al-Maghariba)", "region": "r06_western_wall_dung_gate", "x": 614.4, "y": -196.6},
+        {"id": "zion_gate", "name": "Zion Gate (Bab al-Nabi Dawud)", "region": "r04_armenian_quarter", "x": 190.6, "y": -411.4}
+      ]
+    },
+    {
+      "category": "temples",
+      "name": "Major Temples, Sanctuaries & Holy Sites",
+      "pois": [
+        {"id": "dome_of_the_rock", "name": "Dome of the Rock (Qubbat al-Sakhra) & Dome of the Chain", "region": "r07_temple_mount", "x": 720.7, "y": 155.7},
+        {"id": "al_aqsa_mosque", "name": "Al-Aqsa Mosque (Al-Jami' al-Aqsa) & Al-Kas Fountain", "region": "r07_temple_mount", "x": 762.0, "y": -46.0},
+        {"id": "western_wall", "name": "Western Wall (HaKotel HaMa'aravi) & Wilson's Arch", "region": "r06_western_wall_dung_gate", "x": 666.0, "y": 12.0},
+        {"id": "holy_sepulchre", "name": "Church of the Holy Sepulchre & Mosque of Omar", "region": "r02_christian_quarter", "x": 196.0, "y": 192.0},
+        {"id": "redeemer_church", "name": "Lutheran Church of the Redeemer (Erloserkirche)", "region": "r02_christian_quarter", "x": 278.5, "y": 141.5},
+        {"id": "hurva_synagogue", "name": "Hurva Synagogue & Four Sephardic Synagogues", "region": "r05_jewish_quarter", "x": 346.7, "y": -141.4},
+        {"id": "st_james_cathedral", "name": "St. James Cathedral (Surb Hakob)", "region": "r04_armenian_quarter", "x": 132.5, "y": -227.3},
+        {"id": "st_anne_church", "name": "Crusader Church of St. Anne & Pools of Bethesda", "region": "r08_muslim_quarter_north_gates", "x": 835.2, "y": 528.7}
+      ]
+    },
+    {
+      "category": "touristic_spots",
+      "name": "Major Touristic Spots, Fortresses & Markets",
+      "pois": [
+        {"id": "tower_of_david", "name": "Tower of David (Phasael Tower) & Citadel Moat", "region": "r01_jaffa_gate", "x": 24.5, "y": -34.5},
+        {"id": "omar_square_david_st", "name": "Omar Ibn El-Khattab Square & David Street Souq", "region": "r01_jaffa_gate", "x": 45.0, "y": 2.0},
+        {"id": "muristan_fountain", "name": "Muristan Market (Suq Aftimos) & Fountain", "region": "r02_christian_quarter", "x": 232.0, "y": 128.0},
+        {"id": "triple_souq_chain_st", "name": "Crusader Vaulted Triple Souq & Street of the Chain", "region": "r03_central_souqs", "x": 313.0, "y": 48.0},
+        {"id": "southern_roman_cardo", "name": "Southern Roman Cardo Colonnade & Broad Wall", "region": "r05_jewish_quarter", "x": 308.0, "y": -140.0},
+        {"id": "via_dolorosa_ecce_homo", "name": "Via Dolorosa, Ecce Homo Arch & Austrian Hospice", "region": "r08_muslim_quarter_north_gates", "x": 498.7, "y": 413.4}
+      ]
+    }
+  ]
+}

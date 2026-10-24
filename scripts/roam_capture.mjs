@@ -33,6 +33,8 @@ function parseArgs() {
       zone = args[++i];
     } else if (args[i] === '--poses' && args[i + 1]) {
       customPosesJson = args[++i];
+    } else if (args[i] === '--poses-file' && args[i + 1]) {
+      customPosesJson = fs.readFileSync(path.resolve(ROOT, args[++i]), 'utf-8');
     }
   }
   return { outDir, url, zone, customPosesJson };
@@ -246,12 +248,7 @@ async function main() {
       pitch: p.pitch || 0,
       fov: p.fov || 75,
     });
-    const applied = await cdp.evaluate(`(async () => {
-      window.__QA__.setSkyKey(false);
-      const r = window.__QA__.setPose(${poseArg});
-      await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
-      return r;
-    })()`);
+    const applied = await cdp.evaluate(`window.__QA__.setPose(${poseArg})`);
     const file = `${p.id}.jpg`;
     const buf = await cdp.screenshotJpg();
     fs.writeFileSync(path.join(outDir, file), buf);
