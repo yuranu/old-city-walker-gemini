@@ -1,0 +1,112 @@
+[
+  {
+    "id": "west_plaza",
+    "name": "Jaffa Gate West Approach Plaza",
+    "x": -34.0,
+    "y": 5.0,
+    "z_eye": 1.7,
+    "heading": 98.0,
+    "pitch": 4.0,
+    "fov": 70.0,
+    "radius": 30.0
+  },
+  {
+    "id": "jaffa_gate_portal",
+    "name": "Jaffa Gate (Bab el-Khalil) Outer Portal",
+    "x": -16.0,
+    "y": 2.0,
+    "z_eye": 1.7,
+    "heading": 94.0,
+    "pitch": 8.0,
+    "fov": 70.0,
+    "radius": 20.0
+  },
+  {
+    "id": "jaffa_gate_passage",
+    "name": "Jaffa Gate Vaulted L-Passage",
+    "x": -1.5,
+    "y": 4.5,
+    "z_eye": 1.7,
+    "heading": 145.0,
+    "pitch": 5.0,
+    "fov": 75.0,
+    "radius": 15.0
+  },
+  {
+    "id": "breach_1898",
+    "name": "1898 Wall Breach & Moat Road",
+    "x": 6.0,
+    "y": -10.0,
+    "z_eye": 1.7,
+    "heading": 125.0,
+    "pitch": 4.0,
+    "fov": 70.0,
+    "radius": 25.0
+  },
+  {
+    "id": "tower_of_david",
+    "name": "Tower of David (Phasael Tower) & Citadel Moat",
+    "x": 8.5,
+    "y": -12.5,
+    "z_eye": 1.7,
+    "heading": 148.0,
+    "pitch": 10.0,
+    "fov": 70.0,
+    "radius": 45.0
+  },
+  {
+    "id": "omar_square_west",
+    "name": "Omar Ibn El-Khattab Square (Looking East)",
+    "x": 22.0,
+    "y": -2.5,
+    "z_eye": 1.7,
+    "heading": 85.0,
+    "pitch": 4.0,
+    "fov": 70.0,
+    "radius": 35.0
+  },
+  {
+    "id": "omar_square_north",
+    "name": "New Imperial Hotel & Petra Hotel North Facades",
+    "x": 46.0,
+    "y": -9.0,
+    "z_eye": 1.7,
+    "heading": 15.0,
+    "pitch": 8.0,
+    "fov": 70.0,
+    "radius": 30.0
+  },
+  {
+    "id": "omar_square_east",
+    "name": "Omar Square East (Looking Back to Jaffa Gate)",
+    "x": 76.0,
+    "y": 2.0,
+    "z_eye": 1.7,
+    "heading": 265.0,
+    "pitch": 5.0,
+    "fov": 70.0,
+    "radius": 30.0
+  },
+  {
+    "id": "latin_patriarchate_lane",
+    "name": "Latin Patriarchate Road",
+    "x": 26.5,
+    "y": 28.0,
+    "z_eye": 1.7,
+    "heading": 358.0,
+    "pitch": 4.0,
+    "fov": 70.0,
+    "radius": 25.0
+  },
+  {
+    "id": "david_street_souq",
+    "name": "David Street Stepped Souq Entrance",
+    "x": 82.0,
+    "y": 2.0,
+    "z_eye": 1.7,
+    "heading": 90.0,
+    "pitch": 2.0,
+    "fov": 70.0,
+    "radius": 30.0
+  }
+]

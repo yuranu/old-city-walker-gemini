@@ -1,6 +1,7 @@
 node_modules/
 dist/
 build/
+.venv/
 .DS_Store
 *.blend
 *.blend1
