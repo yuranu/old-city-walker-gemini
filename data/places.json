@@ -108,5 +108,44 @@
     "pitch": 2.0,
     "fov": 70.0,
     "radius": 30.0
+  },
+  {
+    "id": "holy_sepulchre_parvis",
+    "name": "Church of the Holy Sepulchre — Southern Parvis",
+    "shortName": "Holy Sepulchre",
+    "subtitle": "Crusader double-arched facade, 12th-century bell tower, and Anastasis lead dome",
+    "x": 197.0,
+    "y": 154.0,
+    "z_eye": 1.7,
+    "heading": 0.0,
+    "pitch": 14.0,
+    "fov": 70.0,
+    "radius": 35.0
+  },
+  {
+    "id": "muristan_redeemer",
+    "name": "Muristan Fountain & Lutheran Church of the Redeemer",
+    "shortName": "Redeemer & Muristan",
+    "subtitle": "Octagonal Suq Aftimos fountain plaza and soaring white Romanesque bell tower",
+    "x": 222.0,
+    "y": 124.0,
+    "z_eye": 1.7,
+    "heading": 72.0,
+    "pitch": 14.0,
+    "fov": 70.0,
+    "radius": 35.0
+  },
+  {
+    "id": "new_gate_portal",
+    "name": "New Gate (Bab al-Jadid) & NW City Wall",
+    "shortName": "New Gate",
+    "subtitle": "1889 Ottoman arched gatehouse in the high north-western corner of the Christian Quarter",
+    "x": -154.0,
+    "y": 314.0,
+    "z_eye": 1.7,
+    "heading": 145.0,
+    "pitch": 6.0,
+    "fov": 70.0,
+    "radius": 30.0
   }
 ]

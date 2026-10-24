@@ -162,7 +162,7 @@ function normalizePlace(raw, idx = 0) {
 }
 
 function createSkyDome(sunDirection) {
-  const skyGeo = new THREE.SphereGeometry(950, 36, 18);
+  const skyGeo = new THREE.SphereGeometry(1800, 36, 18);
   const skyUniforms = {
     uSunDir: { value: sunDirection.clone().normalize() },
     uSkyKey: { value: 0.0 }
@@ -253,11 +253,141 @@ function buildSkyIBL(renderer, sunDirection) {
   return envRT.texture;
 }
 
-function enhanceMaterial(mat, child, maxAniso) {
+/**
+ * Shared External PBR Texture Library (`/textures/*`).
+ * Allows per-region `.glb` files (`public/models/regions/r01..r08.glb`) to be exported
+ * as lightweight geometry-only chunks (~2–5 MB each) without re-embedding 17.5 MB of
+ * identical textures in every region file, enabling fast delta uploads to Cloudflare!
+ */
+const SHARED_PBR_SPECS = {
+  mat_stone_ashlar: { prefix: 'stone_ashlar', normalStrength: 1.2, metalness: 0.0 },
+  mat_stone_ashlar_aged: { prefix: 'stone_ashlar_aged', normalStrength: 1.2, metalness: 0.0 },
+  mat_stone_mizzi: { prefix: 'stone_mizzi', normalStrength: 1.1, metalness: 0.0 },
+  mat_stone_boss: { prefix: 'stone_boss', normalStrength: 1.25, metalness: 0.0 },
+  mat_stone_rubble: { prefix: 'stone_rubble', normalStrength: 1.25, metalness: 0.0 },
+  mat_paving: { prefix: 'paving_setts', normalStrength: 1.15, metalness: 0.0 },
+  mat_paving_flagstone: { prefix: 'paving_flagstone', normalStrength: 1.05, metalness: 0.0 },
+  mat_steel_shutters: { prefix: 'steel_shutters', normalStrength: 1.2, metalness: 0.35 },
+  mat_plaster: { prefix: 'plaster_warm', normalStrength: 1.1, metalness: 0.0 },
+  mat_roof_tile: { prefix: 'roof_tile', normalStrength: 1.2, metalness: 0.0 },
+  mat_wood_doors: { prefix: 'wood_doors', normalStrength: 1.2, metalness: 0.0 },
+  mat_bark: { prefix: 'bark', normalStrength: 1.4, metalness: 0.0 },
+  mat_iron_dark: { prefix: 'metal_iron', normalStrength: 0.95, metalness: 0.72 },
+  mat_trash_black: { prefix: 'trash_bag', normalStrength: 1.1, metalness: 0.02 },
+  mat_trash_blue: { prefix: 'trash_blue', normalStrength: 1.1, metalness: 0.02 },
+  mat_cardboard: { prefix: 'cardboard', normalStrength: 0.95, metalness: 0.0 },
+  mat_terracotta: { prefix: 'terracotta', normalStrength: 0.95, metalness: 0.0 },
+  mat_awning_red: { prefix: 'awning_red', normalStrength: 0.9, metalness: 0.0 },
+  mat_awning_green: { prefix: 'awning_green', normalStrength: 0.9, metalness: 0.0 },
+  mat_awning_striped: { prefix: 'awning_striped', normalStrength: 0.9, metalness: 0.0 },
+  mat_corrugated_metal: { prefix: 'corrugated_metal', normalStrength: 1.15, metalness: 0.55 },
+  mat_lantern_glow: {
+    prefix: 'plaster_warm',
+    normalStrength: 0.2,
+    metalness: 0.0,
+    emissive: 0xfae06b,
+    emissiveIntensity: 2.8
+  },
+  mat_dome_gold: { prefix: 'dome_gold', normalStrength: 1.1, metalness: 0.78 },
+  mat_dome_lead: { prefix: 'dome_lead', normalStrength: 1.15, metalness: 0.48 },
+  mat_tile_iznik: { prefix: 'tile_iznik', normalStrength: 1.05, metalness: 0.08 }
+};
+
+const SHARED_CUTOUT_SPECS = {
+  mat_foliage_olive: { file: 'foliage_olive.png', roughness: 0.68, alphaTest: 0.35 },
+  mat_foliage_cypress: { file: 'foliage_cypress.png', roughness: 0.70, alphaTest: 0.35 },
+  mat_iron_grille: { file: 'iron_grille.png', roughness: 0.42, alphaTest: 0.35 },
+  mat_signs: { file: 'sign_atlas.png', roughness: 0.45, alphaTest: 0.0 }
+};
+
+async function preloadSharedTextures(maxAniso) {
+  const texLoader = new THREE.TextureLoader();
+  const targetAniso = Math.min(maxAniso, 8);
+  const cache = new Map();
+
+  const loadTex = (url, isColor, repeat = true) => {
+    if (cache.has(url)) return cache.get(url);
+    const p = new Promise((resolve) => {
+      texLoader.load(
+        url,
+        (tex) => {
+          tex.flipY = false; // Match glTF 2.0 TEXCOORD_0 upper-left UV origin
+          tex.colorSpace = isColor ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+          tex.wrapS = repeat ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+          tex.wrapT = repeat ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+          tex.anisotropy = targetAniso;
+          tex.needsUpdate = true;
+          resolve(tex);
+        },
+        undefined,
+        () => resolve(null)
+      );
+    });
+    cache.set(url, p);
+    return p;
+  };
+
+  const pbrSets = {};
+  const tasks = [];
+
+  for (const [matKey, spec] of Object.entries(SHARED_PBR_SPECS)) {
+    tasks.push(
+      Promise.all([
+        loadTex(`/textures/${spec.prefix}_diff.jpg`, true, true),
+        loadTex(`/textures/${spec.prefix}_norm.jpg`, false, true),
+        loadTex(`/textures/${spec.prefix}_rough.jpg`, false, true)
+      ]).then(([map, normalMap, roughnessMap]) => {
+        pbrSets[matKey] = { ...spec, map, normalMap, roughnessMap };
+      })
+    );
+  }
+
+  for (const [matKey, spec] of Object.entries(SHARED_CUTOUT_SPECS)) {
+    const isRepeat = matKey !== 'mat_signs';
+    tasks.push(
+      loadTex(`/textures/${spec.file}`, true, isRepeat).then((map) => {
+        pbrSets[matKey] = { ...spec, map, normalMap: null, roughnessMap: null };
+      })
+    );
+  }
+
+  await Promise.all(tasks);
+  return pbrSets;
+}
+
+function enhanceMaterial(mat, child, maxAniso, sharedTextures = null) {
   if (!mat) return;
 
-  const matName = (mat.name || '').toLowerCase();
+  const rawName = (mat.name || '').replace(/\.\d+$/, '');
+  const matName = rawName.toLowerCase();
   const meshName = `${child.name || ''} ${child.parent?.name || ''}`.toLowerCase();
+
+  // Bind external shared PBR textures if this region .glb was exported as geometry-only
+  if (sharedTextures && !mat.map) {
+    const shared = sharedTextures[rawName] || sharedTextures[matName];
+    if (shared) {
+      if (shared.map) {
+        mat.map = shared.map;
+        mat.color.setRGB(1.0, 1.0, 1.0);
+      }
+      if (shared.normalMap) {
+        mat.normalMap = shared.normalMap;
+      }
+      if (shared.roughnessMap) {
+        mat.roughnessMap = shared.roughnessMap;
+        mat.roughness = 1.0;
+      } else if (typeof shared.roughness === 'number') {
+        mat.roughness = shared.roughness;
+      }
+      if (typeof shared.metalness === 'number') {
+        mat.metalness = shared.metalness;
+      }
+      if (shared.emissive) {
+        mat.emissive = new THREE.Color(shared.emissive);
+        mat.emissiveIntensity = shared.emissiveIntensity || 2.5;
+      }
+    }
+  }
 
   // Enable baked vertex colors (COLOR_0 ground-contact dirt & crevice AO) whenever present on geometry
   if (child.geometry?.attributes?.color) {
@@ -328,7 +458,7 @@ function enhanceMaterial(mat, child, maxAniso) {
  * enables selective shadow casting (skipping tiny street litter/signs/ground from casting shadows),
  * and collects any multi-tier LOD meshes.
  */
-function enhanceScenePBR(root, renderer) {
+function enhanceScenePBR(root, renderer, sharedTextures = null) {
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
   const lodGroups = [];
   const lodBuckets = new Map();
@@ -378,7 +508,7 @@ function enhanceScenePBR(root, renderer) {
 
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     for (const mat of materials) {
-      enhanceMaterial(mat, child, maxAniso);
+      enhanceMaterial(mat, child, maxAniso, sharedTextures);
     }
   });
 
@@ -444,13 +574,13 @@ async function initApp() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0xe6d7c3, 0.0011);
+  scene.fog = new THREE.FogExp2(0xe6d7c3, 0.00075);
 
   const camera = new THREE.PerspectiveCamera(
     65,
     window.innerWidth / window.innerHeight,
     0.2,
-    1200
+    2200
   );
 
   // Grazing warm Mediterranean afternoon sunlight: azimuth 232° (WSW), elevation 30°
@@ -463,26 +593,53 @@ async function initApp() {
     -Math.cos(elRad) * Math.cos(azRad)
   ).normalize();
 
-  // Center shadow frustum near the active Jaffa Gate / Omar Square / Citadel district: ENU (25, -10) -> Three.js (25, 0, 10)
+  // Center shadow frustum near the active player district; updates dynamically on 16m grid steps
   const shadowTargetPos = new THREE.Vector3(25, 0, 10);
   const sunLight = new THREE.DirectionalLight(0xffeed2, 3.8);
   sunLight.target.position.copy(shadowTargetPos);
   sunLight.position.copy(shadowTargetPos).addScaledVector(sunDir, sunDist);
   sunLight.castShadow = true;
-  // 2048x2048 with tightened [-85, 85] frustum gives sharper shadow texel density at 4x less GPU bandwidth
+  // 2048x2048 with [-110, 110] frustum follows the player across the entire Old City
   sunLight.shadow.mapSize.set(2048, 2048);
-  sunLight.shadow.camera.left = -85;
-  sunLight.shadow.camera.right = 85;
-  sunLight.shadow.camera.bottom = -85;
-  sunLight.shadow.camera.top = 85;
+  sunLight.shadow.camera.left = -110;
+  sunLight.shadow.camera.right = 110;
+  sunLight.shadow.camera.bottom = -110;
+  sunLight.shadow.camera.top = 110;
   sunLight.shadow.camera.near = 10;
-  sunLight.shadow.camera.far = 360;
+  sunLight.shadow.camera.far = 420;
   sunLight.shadow.bias = -0.00025;
   sunLight.shadow.normalBias = 0.018;
   scene.add(sunLight);
   scene.add(sunLight.target);
   sunLight.updateMatrixWorld(true);
   sunLight.target.updateMatrixWorld(true);
+
+  let lastShadowSnapX = 25;
+  let lastShadowSnapY = 0;
+  let lastShadowSnapZ = 10;
+
+  function syncSunShadowToCamera(force = false) {
+    const snap = 16.0;
+    const sx = Math.round(camera.position.x / snap) * snap;
+    const sy = Math.round((camera.position.y - 1.7) / snap) * snap;
+    const sz = Math.round(camera.position.z / snap) * snap;
+    if (
+      force ||
+      Math.abs(sx - lastShadowSnapX) >= snap ||
+      Math.abs(sy - lastShadowSnapY) >= snap ||
+      Math.abs(sz - lastShadowSnapZ) >= snap
+    ) {
+      lastShadowSnapX = sx;
+      lastShadowSnapY = sy;
+      lastShadowSnapZ = sz;
+      shadowTargetPos.set(sx, sy, sz);
+      sunLight.target.position.copy(shadowTargetPos);
+      sunLight.position.copy(shadowTargetPos).addScaledVector(sunDir, sunDist);
+      sunLight.updateMatrixWorld(true);
+      sunLight.target.updateMatrixWorld(true);
+      renderer.shadowMap.needsUpdate = true;
+    }
+  }
 
   // Balanced HemisphereLight & low AmbientLight so shadowed walls retain deep AO & directional contrast
   const hemiLight = new THREE.HemisphereLight(0xd8e8f8, 0x8c7a62, 0.52);
@@ -544,6 +701,7 @@ async function initApp() {
     skyMesh.position.copy(camera.position);
     skyMesh.updateMatrix();
     skyMesh.updateMatrixWorld(true);
+    syncSunShadowToCamera(false);
     updateLODVisibility(lodGroups, camera.position);
 
     const useComposer = !skyKeyActive && composer && userAoEnabled;
@@ -704,8 +862,8 @@ async function initApp() {
     if (!bar) return;
     bar.innerHTML = '';
 
-    places.slice(0, 10).forEach((place, idx) => {
-      const keyLabel = idx === 9 ? '0' : String(idx + 1);
+    places.forEach((place, idx) => {
+      const keyLabel = idx < 9 ? String(idx + 1) : idx === 9 ? '0' : `P${idx + 1}`;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'tp-btn' + (place.id === activePlace?.id ? ' active' : '');
@@ -828,7 +986,7 @@ async function initApp() {
         updatePhotoDrawer(place);
       }
       updateHUD(true);
-      renderer.shadowMap.needsUpdate = true;
+      syncSunShadowToCamera(true);
       // Render 2 frames synchronously with high-quality AO so framebuffers are guaranteed updated
       renderFrame(true);
       renderFrame(true);
@@ -1013,52 +1171,77 @@ async function initApp() {
     }
   }
 
-  // Load 3D City GLB Model
+  // Preload shared external PBR textures & load 3D City Region GLB Models in parallel
+  const maxAniso = renderer.capabilities.getMaxAnisotropy();
+  const sharedTexturesPromise = preloadSharedTextures(maxAniso);
+
   const gltfLoader = new GLTFLoader();
-  await new Promise((resolve) => {
-    gltfLoader.load(
-      '/models/jaffa_gate_city.glb',
-      (gltf) => {
-        const cityRoot = gltf.scene;
-        cityRoot.name = 'jaffa_gate_city_root';
-        scene.add(cityRoot);
-        lodGroups = enhanceScenePBR(cityRoot, renderer);
+  const cityRoot = new THREE.Group();
+  cityRoot.name = 'old_city_root';
+  scene.add(cityRoot);
 
-        allSceneMeshes = [];
-        cityRoot.traverse((obj) => {
-          if (obj.isMesh) allSceneMeshes.push(obj);
-        });
+  const regionEntries =
+    Array.isArray(manifestData?.regions) && manifestData.regions.length > 0
+      ? manifestData.regions.map((r) => (typeof r === 'string' ? { id: r, glb: r } : r))
+      : [{ id: 'r01_jaffa_gate', glb: manifestData?.glb_path || '/models/jaffa_gate_city.glb' }];
 
-        const { walkableMeshes, obstacleMeshes } = classifyCollisionMeshes(cityRoot);
-        player.setCollisionMeshes(walkableMeshes, obstacleMeshes);
-        minimap.buildFromScene(cityRoot, manifestData);
-        resolve();
-      },
-      (progress) => {
-        if (loaderFill && progress.total > 0) {
-          const pct = Math.min(95, Math.round((progress.loaded / progress.total) * 100));
-          loaderFill.style.width = `${pct}%`;
-        }
-      },
-      (err) => {
-        console.warn('Could not load /models/jaffa_gate_city.glb yet:', err);
-        if (loaderStatus) {
-          loaderStatus.textContent = 'Initializing fallback terrain plane…';
-        }
-        const fallbackGeo = new THREE.PlaneGeometry(320, 320);
-        fallbackGeo.rotateX(-Math.PI / 2);
-        const fallbackMat = new THREE.MeshStandardMaterial({ color: 0xd8c6a5, roughness: 0.85 });
-        const fallbackMesh = new THREE.Mesh(fallbackGeo, fallbackMat);
-        fallbackMesh.name = 'ground_terrain';
-        fallbackMesh.receiveShadow = true;
-        scene.add(fallbackMesh);
-        allSceneMeshes = [fallbackMesh];
-        player.setCollisionMeshes([fallbackMesh], []);
-        minimap.buildFromScene(scene, manifestData);
-        resolve();
-      }
-    );
+  const sharedTextures = await sharedTexturesPromise;
+  let loadedRegionCount = 0;
+
+  await Promise.all(
+    regionEntries.map(
+      (reg) =>
+        new Promise((resolve) => {
+          const glbUrl = reg.glb || reg.glb_path || reg.url;
+          gltfLoader.load(
+            glbUrl,
+            (gltf) => {
+              const regScene = gltf.scene;
+              regScene.name = reg.id || 'region_chunk';
+              cityRoot.add(regScene);
+              const regLods = enhanceScenePBR(regScene, renderer, sharedTextures);
+              lodGroups.push(...regLods);
+              loadedRegionCount++;
+              if (loaderFill) {
+                const pct = Math.min(96, Math.round((loadedRegionCount / regionEntries.length) * 95));
+                loaderFill.style.width = `${pct}%`;
+              }
+              resolve(true);
+            },
+            undefined,
+            (err) => {
+              console.warn(`Could not load region GLB ${glbUrl}:`, err);
+              resolve(false);
+            }
+          );
+        })
+    )
+  );
+
+  allSceneMeshes = [];
+  cityRoot.traverse((obj) => {
+    if (obj.isMesh) allSceneMeshes.push(obj);
   });
+
+  if (allSceneMeshes.length > 0) {
+    const { walkableMeshes, obstacleMeshes } = classifyCollisionMeshes(cityRoot);
+    player.setCollisionMeshes(walkableMeshes, obstacleMeshes);
+    minimap.buildFromScene(cityRoot, manifestData);
+  } else {
+    if (loaderStatus) {
+      loaderStatus.textContent = 'Initializing fallback terrain plane…';
+    }
+    const fallbackGeo = new THREE.PlaneGeometry(320, 320);
+    fallbackGeo.rotateX(-Math.PI / 2);
+    const fallbackMat = new THREE.MeshStandardMaterial({ color: 0xd8c6a5, roughness: 0.85 });
+    const fallbackMesh = new THREE.Mesh(fallbackGeo, fallbackMat);
+    fallbackMesh.name = 'ground_terrain';
+    fallbackMesh.receiveShadow = true;
+    scene.add(fallbackMesh);
+    allSceneMeshes = [fallbackMesh];
+    player.setCollisionMeshes([fallbackMesh], []);
+    minimap.buildFromScene(scene, manifestData);
+  }
 
   // Apply initial camera pose from URL query parameters (?cam=<place_id> or ?x=...&y=...&h=...&p=...) or default to Place 1
   const camParam = params.get('cam');

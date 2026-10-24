@@ -141,6 +141,7 @@ def make_pbr_textured_material(
     normal_strength: float = 1.15,
     metallic: float = 0.0,
     fallback_prefix: str = "stone_ashlar",
+    embed_textures: bool = False,
 ) -> bpy.types.Material:
     mat = bpy.data.materials.new(name=name)
     nodes = mat.node_tree.nodes
@@ -154,6 +155,9 @@ def make_pbr_textured_material(
     bsdf.location = (80, 0)
     bsdf.inputs["Metallic"].default_value = metallic
     links.new(bsdf.outputs["BSDF"], out_node.inputs["Surface"])
+
+    if not embed_textures:
+        return mat
 
     diff_img = _load_image(tex_dir, f"{prefix}_diff.jpg", f"{fallback_prefix}_diff.jpg", is_data=False)
     if diff_img is not None:
@@ -189,6 +193,7 @@ def make_alpha_cutout_material(
     filename: str,
     roughness: float = 0.65,
     alpha_threshold: float = 0.35,
+    embed_textures: bool = False,
 ) -> bpy.types.Material:
     mat = bpy.data.materials.new(name=name)
     mat.use_backface_culling = False
@@ -211,6 +216,9 @@ def make_alpha_cutout_material(
     bsdf.location = (80, 0)
     bsdf.inputs["Roughness"].default_value = roughness
     links.new(bsdf.outputs["BSDF"], out_node.inputs["Surface"])
+
+    if not embed_textures:
+        return mat
 
     img = _load_image(tex_dir, filename, is_data=False)
     if img is not None:
@@ -252,35 +260,37 @@ def make_solid_material(
     return mat
 
 
-def create_all_materials(tex_dir: Path) -> Dict[str, bpy.types.Material]:
+def create_all_materials(tex_dir: Path, embed_textures: Optional[bool] = None) -> Dict[str, bpy.types.Material]:
+    if embed_textures is None:
+        embed_textures = os.environ.get("EMBED_TEXTURES", "0") == "1"
     mats: Dict[str, bpy.types.Material] = {}
 
-    # 1. Core & New Multi-Variety PBR Texture Sets
-    mats["mat_stone_ashlar"] = make_pbr_textured_material("mat_stone_ashlar", tex_dir, "stone_ashlar", normal_strength=1.1)
+    # 1. Core & Multi-Variety PBR Texture Sets
+    mats["mat_stone_ashlar"] = make_pbr_textured_material("mat_stone_ashlar", tex_dir, "stone_ashlar", normal_strength=1.1, embed_textures=embed_textures)
     mats["mat_stone_ashlar_aged"] = make_pbr_textured_material(
-        "mat_stone_ashlar_aged", tex_dir, "stone_ashlar_aged", normal_strength=1.2, fallback_prefix="stone_ashlar"
+        "mat_stone_ashlar_aged", tex_dir, "stone_ashlar_aged", normal_strength=1.2, fallback_prefix="stone_ashlar", embed_textures=embed_textures
     )
     mats["mat_stone_mizzi"] = make_pbr_textured_material(
-        "mat_stone_mizzi", tex_dir, "stone_mizzi", normal_strength=1.0, fallback_prefix="stone_ashlar"
+        "mat_stone_mizzi", tex_dir, "stone_mizzi", normal_strength=1.0, fallback_prefix="stone_ashlar", embed_textures=embed_textures
     )
-    mats["mat_stone_boss"] = make_pbr_textured_material("mat_stone_boss", tex_dir, "stone_boss", normal_strength=1.25)
-    mats["mat_stone_rubble"] = make_pbr_textured_material("mat_stone_rubble", tex_dir, "stone_rubble", normal_strength=1.25)
-    mats["mat_paving"] = make_pbr_textured_material("mat_paving", tex_dir, "paving_setts", normal_strength=1.1)
+    mats["mat_stone_boss"] = make_pbr_textured_material("mat_stone_boss", tex_dir, "stone_boss", normal_strength=1.25, embed_textures=embed_textures)
+    mats["mat_stone_rubble"] = make_pbr_textured_material("mat_stone_rubble", tex_dir, "stone_rubble", normal_strength=1.25, embed_textures=embed_textures)
+    mats["mat_paving"] = make_pbr_textured_material("mat_paving", tex_dir, "paving_setts", normal_strength=1.1, embed_textures=embed_textures)
     mats["mat_paving_flagstone"] = make_pbr_textured_material(
-        "mat_paving_flagstone", tex_dir, "paving_flagstone", normal_strength=1.0, fallback_prefix="paving_setts"
+        "mat_paving_flagstone", tex_dir, "paving_flagstone", normal_strength=1.0, fallback_prefix="paving_setts", embed_textures=embed_textures
     )
     mats["mat_steel_shutters"] = make_pbr_textured_material(
-        "mat_steel_shutters", tex_dir, "steel_shutters", normal_strength=1.3, metallic=0.35, fallback_prefix="wood_doors"
+        "mat_steel_shutters", tex_dir, "steel_shutters", normal_strength=1.3, metallic=0.35, fallback_prefix="wood_doors", embed_textures=embed_textures
     )
-    mats["mat_plaster"] = make_pbr_textured_material("mat_plaster", tex_dir, "plaster_warm", normal_strength=1.1)
-    mats["mat_roof_tile"] = make_pbr_textured_material("mat_roof_tile", tex_dir, "roof_tile", normal_strength=1.2)
-    mats["mat_wood_doors"] = make_pbr_textured_material("mat_wood_doors", tex_dir, "wood_doors", normal_strength=1.2)
-    mats["mat_bark"] = make_pbr_textured_material("mat_bark", tex_dir, "bark", normal_strength=1.5)
+    mats["mat_plaster"] = make_pbr_textured_material("mat_plaster", tex_dir, "plaster_warm", normal_strength=1.1, embed_textures=embed_textures)
+    mats["mat_roof_tile"] = make_pbr_textured_material("mat_roof_tile", tex_dir, "roof_tile", normal_strength=1.2, embed_textures=embed_textures)
+    mats["mat_wood_doors"] = make_pbr_textured_material("mat_wood_doors", tex_dir, "wood_doors", normal_strength=1.2, embed_textures=embed_textures)
+    mats["mat_bark"] = make_pbr_textured_material("mat_bark", tex_dir, "bark", normal_strength=1.5, embed_textures=embed_textures)
 
     # 2. Alpha Cutout Botanical & Wrought-Iron Materials
-    mats["mat_foliage_olive"] = make_alpha_cutout_material("mat_foliage_olive", tex_dir, "foliage_olive.png", roughness=0.68)
-    mats["mat_foliage_cypress"] = make_alpha_cutout_material("mat_foliage_cypress", tex_dir, "foliage_cypress.png", roughness=0.70)
-    mats["mat_iron_grille"] = make_alpha_cutout_material("mat_iron_grille", tex_dir, "iron_grille.png", roughness=0.42)
+    mats["mat_foliage_olive"] = make_alpha_cutout_material("mat_foliage_olive", tex_dir, "foliage_olive.png", roughness=0.68, embed_textures=embed_textures)
+    mats["mat_foliage_cypress"] = make_alpha_cutout_material("mat_foliage_cypress", tex_dir, "foliage_cypress.png", roughness=0.70, embed_textures=embed_textures)
+    mats["mat_iron_grille"] = make_alpha_cutout_material("mat_iron_grille", tex_dir, "iron_grille.png", roughness=0.42, embed_textures=embed_textures)
 
     # 3. Multilingual Sign Atlas Material
     mat_signs = bpy.data.materials.new(name="mat_signs")
@@ -291,43 +301,53 @@ def create_all_materials(tex_dir: Path) -> Dict[str, bpy.types.Material]:
     s_bsdf = s_nodes.new(type="ShaderNodeBsdfPrincipled")
     s_bsdf.inputs["Roughness"].default_value = 0.45
     s_links.new(s_bsdf.outputs["BSDF"], s_out.inputs["Surface"])
-    sign_img = _load_image(tex_dir, "sign_atlas.png", is_data=False)
-    if sign_img is not None:
-        s_tex = s_nodes.new(type="ShaderNodeTexImage")
-        s_tex.image = sign_img
-        s_links.new(s_tex.outputs["Color"], s_bsdf.inputs["Base Color"])
+    if embed_textures:
+        sign_img = _load_image(tex_dir, "sign_atlas.png", is_data=False)
+        if sign_img is not None:
+            s_tex = s_nodes.new(type="ShaderNodeTexImage")
+            s_tex.image = sign_img
+            s_links.new(s_tex.outputs["Color"], s_bsdf.inputs["Base Color"])
     mats["mat_signs"] = mat_signs
 
-    # 4. Textured PBR Heritage Accent Materials (ZERO untextured solid materials!)
+    # 4. Textured PBR Heritage Accent & Landmark Materials
     mats["mat_iron_dark"] = make_pbr_textured_material(
-        "mat_iron_dark", tex_dir, "metal_iron", normal_strength=0.95, metallic=0.72, fallback_prefix="steel_shutters"
+        "mat_iron_dark", tex_dir, "metal_iron", normal_strength=0.95, metallic=0.72, fallback_prefix="steel_shutters", embed_textures=embed_textures
     )
     mats["mat_trash_black"] = make_pbr_textured_material(
-        "mat_trash_black", tex_dir, "trash_bag", normal_strength=1.10, metallic=0.02, fallback_prefix="stone_rubble"
+        "mat_trash_black", tex_dir, "trash_bag", normal_strength=1.10, metallic=0.02, fallback_prefix="stone_rubble", embed_textures=embed_textures
     )
     mats["mat_trash_blue"] = make_pbr_textured_material(
-        "mat_trash_blue", tex_dir, "trash_blue", normal_strength=1.10, metallic=0.02, fallback_prefix="trash_bag"
+        "mat_trash_blue", tex_dir, "trash_blue", normal_strength=1.10, metallic=0.02, fallback_prefix="trash_bag", embed_textures=embed_textures
     )
     mats["mat_cardboard"] = make_pbr_textured_material(
-        "mat_cardboard", tex_dir, "cardboard", normal_strength=0.95, metallic=0.0, fallback_prefix="wood_doors"
+        "mat_cardboard", tex_dir, "cardboard", normal_strength=0.95, metallic=0.0, fallback_prefix="wood_doors", embed_textures=embed_textures
     )
     mats["mat_terracotta"] = make_pbr_textured_material(
-        "mat_terracotta", tex_dir, "terracotta", normal_strength=0.95, metallic=0.0, fallback_prefix="roof_tile"
+        "mat_terracotta", tex_dir, "terracotta", normal_strength=0.95, metallic=0.0, fallback_prefix="roof_tile", embed_textures=embed_textures
     )
     mats["mat_awning_red"] = make_pbr_textured_material(
-        "mat_awning_red", tex_dir, "awning_red", normal_strength=0.90, metallic=0.0, fallback_prefix="plaster_warm"
+        "mat_awning_red", tex_dir, "awning_red", normal_strength=0.90, metallic=0.0, fallback_prefix="plaster_warm", embed_textures=embed_textures
     )
     mats["mat_awning_green"] = make_pbr_textured_material(
-        "mat_awning_green", tex_dir, "awning_green", normal_strength=0.90, metallic=0.0, fallback_prefix="plaster_warm"
+        "mat_awning_green", tex_dir, "awning_green", normal_strength=0.90, metallic=0.0, fallback_prefix="plaster_warm", embed_textures=embed_textures
     )
     mats["mat_awning_striped"] = make_pbr_textured_material(
-        "mat_awning_striped", tex_dir, "awning_striped", normal_strength=0.90, metallic=0.0, fallback_prefix="plaster_warm"
+        "mat_awning_striped", tex_dir, "awning_striped", normal_strength=0.90, metallic=0.0, fallback_prefix="plaster_warm", embed_textures=embed_textures
     )
     mats["mat_corrugated_metal"] = make_pbr_textured_material(
-        "mat_corrugated_metal", tex_dir, "corrugated_metal", normal_strength=1.15, metallic=0.55, fallback_prefix="steel_shutters"
+        "mat_corrugated_metal", tex_dir, "corrugated_metal", normal_strength=1.15, metallic=0.55, fallback_prefix="steel_shutters", embed_textures=embed_textures
+    )
+    mats["mat_dome_gold"] = make_pbr_textured_material(
+        "mat_dome_gold", tex_dir, "dome_gold", normal_strength=1.10, metallic=0.78, fallback_prefix="stone_ashlar", embed_textures=embed_textures
+    )
+    mats["mat_dome_lead"] = make_pbr_textured_material(
+        "mat_dome_lead", tex_dir, "dome_lead", normal_strength=1.15, metallic=0.48, fallback_prefix="steel_shutters", embed_textures=embed_textures
+    )
+    mats["mat_tile_iznik"] = make_pbr_textured_material(
+        "mat_tile_iznik", tex_dir, "tile_iznik", normal_strength=1.05, metallic=0.08, fallback_prefix="stone_ashlar", embed_textures=embed_textures
     )
     mat_glow = make_pbr_textured_material(
-        "mat_lantern_glow", tex_dir, "plaster_warm", normal_strength=0.2, metallic=0.0, fallback_prefix="stone_ashlar"
+        "mat_lantern_glow", tex_dir, "plaster_warm", normal_strength=0.2, metallic=0.0, fallback_prefix="stone_ashlar", embed_textures=embed_textures
     )
     glow_bsdf = mat_glow.node_tree.nodes.get("Principled BSDF")
     if glow_bsdf is not None:
@@ -675,87 +695,76 @@ def patch_glb_alpha_modes(glb_path: Path) -> None:
     glb_path.write_bytes(bytes(out))
 
 
-def main() -> None:
+def build_single_region(
+    region_id: str,
+    tex_dir: Path,
+    sign_atlas: dict,
+    osm_jaffa: dict,
+    osm_old_city: dict,
+    regions_dir: Path,
+) -> dict:
+    from regions_builder import (
+        build_region_r02_christian_quarter,
+         street_elevation_z as full_city_elevation_z,
+    )
+
     t0 = time.time()
-    osm_path = ROOT_DIR / "data" / "osm_jaffa.json"
-    tex_dir = ROOT_DIR / "public" / "textures"
-    sign_atlas_path = tex_dir / "sign_atlas.json"
-    out_glb_path = ROOT_DIR / "public" / "models" / "jaffa_gate_city.glb"
-    out_manifest_path = ROOT_DIR / "public" / "data" / "scene_manifest.json"
-
-    out_glb_path.parent.mkdir(parents=True, exist_ok=True)
-    out_manifest_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if osm_path.exists():
-        with open(osm_path, "r", encoding="utf-8") as f:
-            osm_data = json.load(f)
-    else:
-        print(f"[WARN] {osm_path} not found, building with empty OSM list.")
-        osm_data = {"buildings": [], "streets": [], "walls": [], "trees": [], "pois": []}
-
-    if sign_atlas_path.exists():
-        with open(sign_atlas_path, "r", encoding="utf-8") as f:
-            sign_atlas = json.load(f)
-    else:
-        sign_atlas = {}
-
     clear_blender_scene()
-    materials = create_all_materials(tex_dir)
+    materials = create_all_materials(tex_dir, embed_textures=False)
     collector = MeshCollector()
+    out_glb_path = regions_dir / f"{region_id}.glb"
 
-    print("[1/5] Building continuous stone-paved ground mesh (flagstones + cobble setts) & kerbs...")
-    build_continuous_ground_mesh(collector)
+    if region_id == "r01_jaffa_gate":
+        print("[r01] Building Jaffa Gate District...")
+        build_continuous_ground_mesh(collector)
+        build_jaffa_gate_monument(collector, sign_atlas)
+        build_citadel_and_tower_of_david(collector, sign_atlas)
+        clear_scene_building_rings()
+        osm_buildings = osm_jaffa.get("buildings", [])
+        for idx, b in enumerate(osm_buildings):
+            if should_skip_osm_building(b):
+                continue
+            register_scene_building_ring(int(b.get("osm_id", idx)), b.get("ring", []))
+        build_hero_omar_square_and_david_street(collector, sign_atlas, street_elevation_z)
+        built_osm_count = 0
+        for idx, b in enumerate(osm_buildings):
+            if should_skip_osm_building(b):
+                continue
+            ring = b.get("ring", [])
+            cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
+            bz = street_elevation_z(cx, cy)
+            lvls = int(b.get("levels", 2))
+            build_building_from_footprint(
+                collector,
+                ring,
+                base_z=bz,
+                levels=lvls,
+                sign_atlas=sign_atlas,
+                building_id=int(b.get("osm_id", idx)),
+                is_hero=False,
+            )
+            built_osm_count += 1
+        populate_street_props_and_trees(collector, osm_jaffa.get("trees", []))
+        elev_fn = street_elevation_z
+    elif region_id == "r02_christian_quarter":
+        print("[r02] Building Christian Quarter, Church of the Holy Sepulchre, Redeemer, Muristan & New Gate...")
+        built_osm_count = build_region_r02_christian_quarter(collector, osm_old_city, sign_atlas)
+        elev_fn = full_city_elevation_z
+    else:
+        from regions_builder import build_additional_region
+        print(f"[{region_id}] Building Old City region {region_id}...")
+        built_osm_count = build_additional_region(region_id, collector, osm_old_city, sign_atlas)
+        elev_fn = full_city_elevation_z
 
-    print("[2/5] Building Jaffa Gate (Bab el-Khalil), Sealed Vaulted L-Turn Passage & City Wall...")
-    build_jaffa_gate_monument(collector, sign_atlas)
-
-    print("[3/5] Building Citadel, Widened 13.5m Sunken Dry Moat, Glacis, Phasael Tower & Minaret...")
-    build_citadel_and_tower_of_david(collector, sign_atlas)
-
-    # Pre-register all valid OSM building rings so `is_bay_clearance_valid` checks both hero & OSM neighbors!
-    clear_scene_building_rings()
-    osm_buildings = osm_data.get("buildings", [])
-    for idx, b in enumerate(osm_buildings):
-        if should_skip_osm_building(b):
-            continue
-        register_scene_building_ring(int(b.get("osm_id", idx)), b.get("ring", []))
-
-    print("[4/5] Building Hero Omar Square Hotels, Latin Patriarchate Rd, David St & West Horizon...")
-    build_hero_omar_square_and_david_street(collector, sign_atlas, street_elevation_z)
-
-    built_osm_count = 0
-    for idx, b in enumerate(osm_buildings):
-        if should_skip_osm_building(b):
-            continue
-        ring = b.get("ring", [])
-        cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
-        bz = street_elevation_z(cx, cy)
-        lvls = int(b.get("levels", 2))
-        build_building_from_footprint(
-            collector,
-            ring,
-            base_z=bz,
-            levels=lvls,
-            sign_atlas=sign_atlas,
-            building_id=int(b.get("osm_id", idx)),
-            is_hero=False,
-        )
-        built_osm_count += 1
-
-    print(f"      Built {built_osm_count} surrounding OSM buildings + 21 hero landmark structures.")
-
-    print("[5/5] Populating structured non-blob trees, trash scatters, utility boxes, lamps & bins...")
-    populate_street_props_and_trees(collector, osm_data.get("trees", []))
-
-    created_objs = collector.build_blender_objects(materials, ground_fn=street_elevation_z)
+    created_objs = collector.build_blender_objects(materials, ground_fn=elev_fn)
     total_verts = sum(len(obj.data.vertices) for obj in created_objs)
     total_faces = sum(len(obj.data.polygons) for obj in created_objs)
-    print(f"[MESH] Created {len(created_objs)} batched mesh objects ({total_verts:,} verts, {total_faces:,} faces).")
+    print(f"[MESH:{region_id}] Created {len(created_objs)} batched mesh objects ({total_verts:,} verts, {total_faces:,} faces).")
 
     lint_report_path = ROOT_DIR / "public" / "data" / "mesh_lint_report.json"
-    lint_report = run_mesh_linter(created_objs, lint_report_path)
+    run_mesh_linter(created_objs, lint_report_path)
 
-    print(f"[GLTF] Exporting {out_glb_path} (with COLOR_0 baked vertex AO/dirt)...")
+    print(f"[GLTF] Exporting {out_glb_path} (geometry-only + COLOR_0 baked vertex AO/dirt)...")
     bpy.ops.export_scene.gltf(
         filepath=str(out_glb_path),
         export_format="GLB",
@@ -769,17 +778,65 @@ def main() -> None:
     patch_glb_alpha_modes(out_glb_path)
     glb_size = out_glb_path.stat().st_size if out_glb_path.exists() else 0
     print(f"[OK] Exported {out_glb_path} ({glb_size / (1024 * 1024):.2f} MB) in {time.time() - t0:.1f}s")
+    return {
+        "region_id": region_id,
+        "total_verts": total_verts,
+        "total_faces": total_faces,
+        "built_osm_count": built_osm_count,
+        "mesh_objects": [obj.name for obj in created_objs],
+        "prop_counts": collector.prop_counts,
+        "glb_size": glb_size,
+    }
+
+
+def main() -> None:
+    osm_jaffa_path = ROOT_DIR / "data" / "osm_jaffa.json"
+    osm_old_city_path = ROOT_DIR / "data" / "osm_old_city.json"
+    tex_dir = ROOT_DIR / "public" / "textures"
+    sign_atlas_path = tex_dir / "sign_atlas.json"
+    regions_dir = ROOT_DIR / "public" / "models" / "regions"
+    out_manifest_path = ROOT_DIR / "public" / "data" / "scene_manifest.json"
+
+    regions_dir.mkdir(parents=True, exist_ok=True)
+    out_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+
+    osm_jaffa = json.loads(osm_jaffa_path.read_text(encoding="utf-8")) if osm_jaffa_path.exists() else {"buildings": [], "trees": []}
+    osm_old_city = json.loads(osm_old_city_path.read_text(encoding="utf-8")) if osm_old_city_path.exists() else osm_jaffa
+    sign_atlas = json.loads(sign_atlas_path.read_text(encoding="utf-8")) if sign_atlas_path.exists() else {}
+
+    target_regions = ["r01_jaffa_gate"]
+    if "--" in sys.argv:
+        extra_args = sys.argv[sys.argv.index("--") + 1 :]
+        for idx, arg in enumerate(extra_args):
+            if arg == "--region" and idx + 1 < len(extra_args):
+                val = extra_args[idx + 1]
+                target_regions = [r.strip() for r in val.split(",") if r.strip()]
+
+    last_stats = None
+    for reg_id in target_regions:
+        last_stats = build_single_region(reg_id, tex_dir, sign_atlas, osm_jaffa, osm_old_city, regions_dir)
+
+    region_list = []
+    for r_file in sorted(regions_dir.glob("*.glb")):
+        region_list.append(
+            {
+                "id": r_file.stem,
+                "glb": f"/models/regions/{r_file.name}",
+                "size_bytes": r_file.stat().st_size,
+            }
+        )
 
     manifest = {
         "origin": {"lat": 31.77661, "lon": 35.22768, "alt": 766.0},
-        "glb_path": "/models/jaffa_gate_city.glb",
-        "glb_size_bytes": glb_size,
-        "mesh_objects": [obj.name for obj in created_objs],
+        "glb_path": "/models/regions/r01_jaffa_gate.glb",
+        "glb_size_bytes": sum(r["size_bytes"] for r in region_list),
+        "regions": region_list,
+        "mesh_objects": last_stats["mesh_objects"] if last_stats else [],
         "stats": {
-            "total_vertices": total_verts,
-            "total_faces": total_faces,
-            "osm_buildings_built": built_osm_count,
-            "prop_counts": collector.prop_counts,
+            "total_vertices": last_stats["total_verts"] if last_stats else 0,
+            "total_faces": last_stats["total_faces"] if last_stats else 0,
+            "osm_buildings_built": last_stats["built_osm_count"] if last_stats else 0,
+            "prop_counts": last_stats["prop_counts"] if last_stats else {},
         },
         "landmarks": [
             {"id": "jaffa_gate", "name": "Jaffa Gate (Bab el-Khalil)", "enu": [0.0, 2.5, 0.0]},
@@ -789,11 +846,15 @@ def main() -> None:
             {"id": "new_imperial_hotel", "name": "New Imperial Hotel", "enu": [36.0, 20.5, 0.55]},
             {"id": "petra_hotel", "name": "Petra Hotel", "enu": [74.0, 19.5, 0.65]},
             {"id": "david_street_souq", "name": "David Street Stepped Souq (Suq el-Bazar)", "enu": [95.0, 2.0, 0.1]},
+            {"id": "holy_sepulchre", "name": "Church of the Holy Sepulchre", "enu": [196.0, 192.0, -6.0]},
+            {"id": "redeemer_church", "name": "Lutheran Church of the Redeemer", "enu": [278.5, 141.5, -8.5]},
+            {"id": "muristan_fountain", "name": "Muristan Fountain & Market", "enu": [232.0, 128.0, -7.5]},
+            {"id": "new_gate", "name": "New Gate (Bab al-Jadid)", "enu": [-141.1, 297.9, 13.5]},
         ],
     }
     with open(out_manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
-    print(f"[OK] Wrote {out_manifest_path}")
+    print(f"[OK] Wrote {out_manifest_path} ({len(region_list)} active regions, total {manifest['glb_size_bytes'] / (1024*1024):.2f} MB)")
 
 
 if __name__ == "__main__":
