@@ -50,6 +50,217 @@ def _dist_to_polyline(px: float, py: float, pts: Sequence[Tuple[float, float]], 
             return True
     return False
 
+
+def _ring_overlaps_rect(ring: Sequence[Sequence[float]], x0: float, y0: float, x1: float, y1: float) -> bool:
+    """Returns True if polygon `ring` overlaps axis-aligned box `[x0, x1] x [y0, y1]`."""
+    if not ring:
+        return False
+    rxs = [float(p[0]) for p in ring]
+    rys = [float(p[1]) for p in ring]
+    if max(rxs) < x0 or min(rxs) > x1 or max(rys) < y0 or min(rys) > y1:
+        return False
+    return True
+
+
+def _ring_overlaps_polyline(ring: Sequence[Sequence[float]], pts: Sequence[Tuple[float, float]], radius: float) -> bool:
+    """Returns True if any vertex/edge of `ring` is within `radius` of `pts`, or if `pts` passes inside `ring`."""
+    if not ring or len(pts) < 2:
+        return False
+    poly2d = [(float(p[0]), float(p[1])) for p in ring]
+    n = len(poly2d)
+    for i in range(n):
+        p0 = poly2d[i]
+        p1 = poly2d[(i + 1) % n]
+        if _dist_to_polyline(p0[0], p0[1], pts, radius):
+            return True
+        if _dist_to_polyline(0.5 * (p0[0] + p1[0]), 0.5 * (p0[1] + p1[1]), pts, radius):
+            return True
+    for i in range(len(pts) - 1):
+        x0, y0 = pts[i]
+        x1, y1 = pts[i + 1]
+        for t in (0.0, 0.25, 0.5, 0.75, 1.0):
+            if point_in_polygon_2d((x0 + (x1 - x0) * t, y0 + (y1 - y0) * t), poly2d):
+                return True
+    return False
+
+
+def _build_souq_street_corridor(
+    collector: MeshCollector,
+    p0: Vec2,
+    p1: Vec2,
+    street_w: float = 5.8,
+    wall_h: float = 8.4,
+    with_arches: bool = True,
+    with_shops: bool = True,
+    vaulted_roof: bool = False,
+    seed: int = 100,
+) -> None:
+    """
+    Builds a continuous, street-aligned Jerusalem limestone corridor between `p0` and `p1`
+    with recessed arched ground-floor shopfronts/portals, upper arched windows, cornice molding,
+    and optional grounded stone flying-buttress arches or vaulted market bays.
+    """
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    seg_len = math.hypot(dx, dy)
+    if seg_len < 6.0:
+        return
+    tx, ty = dx / seg_len, dy / seg_len
+    nx, ny = ty, -tx
+    n_bays = max(1, int(round(seg_len / 13.0)))
+    hw = 0.5 * street_w
+
+    uv_choices = ("souq_open", "door_wood", "souq_open", "window_glass")
+    for b_i in range(n_bays):
+        t0 = b_i / n_bays
+        t1 = (b_i + 1) / n_bays
+        tm = 0.5 * (t0 + t1)
+        bx0 = (p0[0] + dx * t0, p0[1] + dy * t0)
+        bx1 = (p0[0] + dx * t1, p0[1] + dy * t1)
+        mx, my = p0[0] + dx * tm, p0[1] + dy * tm
+        bz = street_elevation_z(mx, my)
+
+        for side_idx, side_s in enumerate((-1.0, 1.0)):
+            # Wall face normal pointing into the street corridor
+            fnx, fny = -side_s * nx, -side_s * ny
+            ftx, fty = (tx, ty) if side_s < 0 else (-tx, -ty)
+            w0 = (bx0[0] + nx * side_s * hw, bx0[1] + ny * side_s * hw)
+            w1 = (bx1[0] + nx * side_s * hw, bx1[1] + ny * side_s * hw)
+            if side_s > 0:
+                w0, w1 = w1, w0
+
+            wall_mat = "mat_stone_ashlar" if (b_i + side_idx) % 2 == 0 else "mat_stone_mizzi"
+            collector.add_oriented_box(
+                "Buildings_Walls",
+                wall_mat,
+                w0,
+                w1,
+                bz - 1.5,
+                bz + wall_h,
+                -2.6,
+                0.0,
+                (fnx, fny),
+                uv_scale=0.25,
+                cap_back=True,
+            )
+            collector.add_oriented_box(
+                "Buildings_Details",
+                "mat_stone_boss",
+                w0,
+                w1,
+                bz + wall_h,
+                bz + wall_h + 0.36,
+                -2.7,
+                0.22,
+                (fnx, fny),
+                uv_scale=0.30,
+                cap_back=True,
+            )
+
+            for sub_off in (-0.24, 0.24):
+                st = tm + sub_off / n_bays
+                sx = p0[0] + dx * st + nx * side_s * (hw - 0.03)
+                sy = p0[1] + dy * st + ny * side_s * (hw - 0.03)
+                sz = street_elevation_z(sx, sy)
+                if with_shops:
+                    uv_key = uv_choices[(seed + b_i * 3 + side_idx + (1 if sub_off > 0 else 0)) % len(uv_choices)]
+                    add_arched_opening_panel(
+                        collector,
+                        "Buildings_Openings",
+                        "mat_wood_doors",
+                        (sx, sy),
+                        sz,
+                        sz + 2.1,
+                        1.05,
+                        2.35,
+                        0.02,
+                        (ftx, fty),
+                        (fnx, fny),
+                        uv_rect=WOOD_DOOR_UV[uv_key],
+                        num_voussoirs=7,
+                        add_wall_spandrel=False,
+                    )
+                    add_arch_voussoirs(
+                        collector,
+                        "Buildings_Details",
+                        "mat_stone_boss",
+                        (sx, sy, sz + 2.1),
+                        (ftx, fty),
+                        (fnx, fny),
+                        span_w=2.50,
+                        arch_h=1.10,
+                        ring_thickness=0.32,
+                        offset_n0=-0.02,
+                        offset_n1=0.18,
+                        num_voussoirs=7,
+                    )
+                # Upper storey arched window
+                add_arched_opening_panel(
+                    collector,
+                    "Buildings_Openings",
+                    "mat_wood_doors",
+                    (sx, sy),
+                    sz + 4.5,
+                    sz + 6.0,
+                    0.62,
+                    1.25,
+                    0.02,
+                    (ftx, fty),
+                    (fnx, fny),
+                    uv_rect=WOOD_DOOR_UV["window_glass"],
+                    num_voussoirs=5,
+                    add_wall_spandrel=False,
+                )
+                add_arch_voussoirs(
+                    collector,
+                    "Buildings_Details",
+                    "mat_stone_boss",
+                    (sx, sy, sz + 6.0),
+                    (ftx, fty),
+                    (fnx, fny),
+                    span_w=1.35,
+                    arch_h=0.68,
+                    ring_thickness=0.24,
+                    offset_n0=-0.02,
+                    offset_n1=0.14,
+                    num_voussoirs=5,
+                )
+
+        if vaulted_roof:
+            if b_i % 3 != 1:
+                collector.add_oriented_box(
+                    "Buildings_Walls",
+                    "mat_stone_ashlar",
+                    bx0,
+                    bx1,
+                    bz + wall_h - 0.4,
+                    bz + wall_h + 0.35,
+                    -hw - 0.4,
+                    hw + 0.4,
+                    (nx, ny),
+                    uv_scale=0.26,
+                    cap_back=True,
+                    cap_bottom=True,
+                )
+        if with_arches and (b_i % 2 == 0 or vaulted_roof):
+            ap0 = (mx - tx * 0.55, my - ty * 0.55)
+            ap1 = (mx + tx * 0.55, my + ty * 0.55)
+            collector.add_oriented_box(
+                "Buildings_Details",
+                "mat_stone_boss",
+                ap0,
+                ap1,
+                bz + 5.3,
+                bz + 6.25,
+                -hw - 0.2,
+                hw + 0.2,
+                (nx, ny),
+                uv_scale=0.28,
+                cap_back=True,
+                cap_bottom=True,
+            )
+
+
+
 from fetch_osm_and_dem import street_elevation_z
 from props_lib import (
     MeshCollector,
@@ -1143,15 +1354,62 @@ def build_region_r02_christian_quarter(
         sign_rect=sign_rect_ng,
     )
 
-    # 3. Hero Landmarks: Church of the Holy Sepulchre, Redeemer, Muristan Fountain
+    # 3. Hero Landmarks: Church of the Holy Sepulchre, Redeemer, Muristan Fountain & Christian Quarter Lanes
     _build_church_of_the_holy_sepulchre(collector, sign_atlas)
     _build_redeemer_and_muristan(collector, sign_atlas)
 
-    # 4. Christian Quarter OSM Buildings (filtered to inside Old City Walls & non-overlapping with hero sites)
+    # Christian Quarter Road (`x = 132.0, y = 78..155`), Greek Patriarchate Lane (`y = 185.0, x = 85..155`),
+    # St. Francis Street (`(-25, 255) -> (32, 198)`), and Muristan North Market Arch (`(235.0, 158.0)`)
+    _build_souq_street_corridor(collector, (132.0, 78.0), (132.0, 152.0), street_w=6.2, wall_h=8.6, with_arches=True, with_shops=True, seed=201)
+    _build_souq_street_corridor(collector, (82.0, 185.0), (154.0, 185.0), street_w=5.8, wall_h=8.4, with_arches=True, with_shops=True, seed=202)
+    _build_souq_street_corridor(collector, (-20.0, 250.0), (35.0, 195.0), street_w=6.2, wall_h=8.8, with_arches=True, with_shops=False, seed=203)
+
+    # Muristan North Market Gateway Arch (`Suq Aftimos` entrance at `(235.0, 154.0)`)
+    ma_x, ma_y = 235.0, 154.0
+    ma_z = street_elevation_z(ma_x, ma_y)
+    for sx_off in (-3.4, 3.4):
+        collector.add_box("Buildings_Walls", "mat_stone_boss", (ma_x + sx_off, ma_y, ma_z + 3.6), (1.8, 1.8, 7.2), uv_scale=0.25)
+    add_arch_voussoirs(
+        collector,
+        "Buildings_Details",
+        "mat_stone_boss",
+        (ma_x, ma_y + 0.85, ma_z + 3.6),
+        (-1.0, 0.0),
+        (0.0, 1.0),
+        span_w=5.2,
+        arch_h=2.1,
+        ring_thickness=0.42,
+        offset_n0=-1.7,
+        offset_n1=0.15,
+        num_voussoirs=11,
+    )
+    add_arch_spandrel_wall(
+        collector,
+        "Buildings_Walls",
+        "mat_stone_mizzi",
+        (ma_x, ma_y, ma_z + 3.6),
+        (1.0, 0.0),
+        (0.0, 1.0),
+        span_w=5.3,
+        arch_h=2.1,
+        z_top=ma_z + 6.8,
+        offset_n0=-0.85,
+        offset_n1=0.85,
+        num_voussoirs=10,
+    )
+    collector.add_box("Buildings_Details", "mat_stone_mizzi", (ma_x, ma_y, ma_z + 7.0), (8.8, 2.1, 0.45), uv_scale=0.30, bottom_face=True)
+
+    # 4. Christian Quarter OSM Buildings (filtered to inside Old City Walls & non-overlapping with hero sites/corridors)
     clear_scene_building_rings()
     osm_buildings = [
         b for b in osm_data.get("buildings", [])
         if b.get("region") == "r02_christian_quarter"
+    ]
+
+    r02_corridors = [
+        [(132.0, 65.0), (132.0, 215.0)],
+        [(70.0, 185.0), (165.0, 185.0)],
+        [(-35.0, 265.0), (45.0, 185.0)],
     ]
 
     valid_blds = []
@@ -1162,21 +1420,24 @@ def build_region_r02_christian_quarter(
         cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
         if not is_inside_old_city_walls(cx, cy, margin=-4.0):
             continue
-        # Keep Holy Sepulchre + Southern Parvis (`164..220, 152..218`) clear
-        if 164.0 <= cx <= 220.0 and 152.0 <= cy <= 218.0:
-            continue
-        # Keep Redeemer + Muristan Fountain Plaza (`218..294, 114..158`) clear
-        if 218.0 <= cx <= 294.0 and 114.0 <= cy <= 158.0:
-            continue
-        # Keep New Gate portal road (`-152..-125, 282..312`) clear
-        if -152.0 <= cx <= -125.0 and 282.0 <= cy <= 312.0:
-            continue
         ring = b.get("ring", [])
         if len(ring) < 3:
             continue
         rxs = [float(p[0]) for p in ring]
         rys = [float(p[1]) for p in ring]
         if (max(rxs) - min(rxs)) > 68.0 or (max(rys) - min(rys)) > 68.0:
+            continue
+        # Keep Holy Sepulchre + Southern Parvis (`160..224, 148..222`) clear
+        if _ring_overlaps_rect(ring, 160.0, 148.0, 224.0, 222.0):
+            continue
+        # Keep Redeemer + Muristan Fountain Plaza + North Arch (`214..294, 112..178`) clear
+        if _ring_overlaps_rect(ring, 214.0, 112.0, 294.0, 178.0):
+            continue
+        # Keep New Gate portal road (`-154..-122, 280..314`) clear
+        if _ring_overlaps_rect(ring, -154.0, 280.0, -122.0, 314.0):
+            continue
+        # Keep Christian Quarter Road, Greek Patriarchate Lane, and St. Francis Street corridors clear
+        if any(_ring_overlaps_polyline(ring, corr, 8.5) for corr in r02_corridors):
             continue
         valid_blds.append(b)
         register_scene_building_ring(osm_id, ring)
@@ -1482,13 +1743,69 @@ def build_region_r03_central_souqs(
             return True
         return False
 
-    build_region_ground_grid(collector, 165.0, 605.0, -45.0, 260.0, step=5.5, exclude_fn=r03_exclude)
+    build_region_ground_grid(collector, 165.0, 668.0, -45.0, 260.0, step=5.5, exclude_fn=r03_exclude)
     _build_vaulted_triple_souq_and_chain_street(collector, sign_atlas)
+
+    # Khan el-Zeit Souq (`(305, 162) -> (305, 252)`), El-Wad / HaGai Street (`(510, 72) -> (510, 235)`),
+    # and Vaulted Mamluk Suq al-Qattanin (`(565, 145) -> (662, 145)`) + Bab al-Qattanin Ablaq Portal (`(665.5, 145.0)`)
+    _build_souq_street_corridor(collector, (305.0, 162.0), (305.0, 252.0), street_w=6.4, wall_h=8.4, with_arches=True, with_shops=True, seed=301)
+    _build_souq_street_corridor(collector, (510.0, 72.0), (510.0, 235.0), street_w=6.2, wall_h=8.4, with_arches=True, with_shops=True, seed=302)
+    _build_souq_street_corridor(collector, (565.0, 145.0), (662.0, 145.0), street_w=6.0, wall_h=8.8, with_arches=True, with_shops=True, vaulted_roof=True, seed=303)
+
+    # Bab al-Qattanin (Cotton Merchants' Gate) Mamluk Ablaq Portal at the east end of Suq al-Qattanin (`(665.0, 145.0)`)
+    q_x, q_y = 665.0, 145.0
+    q_z = street_elevation_z(q_x, q_y)
+    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (q_x + 1.2, q_y, q_z + 5.6), (2.4, 9.6, 11.2), uv_scale=0.24)
+    for ab_z in (4.5, 5.5, 6.5, 7.5, 8.5, 9.5):
+        collector.add_box(
+            "Buildings_Details",
+            "mat_terracotta" if int(ab_z * 2) % 2 == 0 else "mat_stone_boss",
+            (q_x - 0.08, q_y, q_z + ab_z),
+            (0.24, 8.8, 0.38),
+            uv_scale=0.35,
+        )
+    add_arched_opening_panel(
+        collector,
+        "Buildings_Openings",
+        "mat_wood_doors",
+        (q_x - 0.04, q_y),
+        q_z,
+        q_z + 3.2,
+        1.8,
+        3.6,
+        0.02,
+        (0.0, 1.0),
+        (-1.0, 0.0),
+        uv_rect=WOOD_DOOR_UV["door_wood"],
+        num_voussoirs=9,
+        add_wall_spandrel=False,
+    )
+    add_arch_voussoirs(
+        collector,
+        "Buildings_Details",
+        "mat_stone_boss",
+        (q_x - 0.04, q_y, q_z + 3.2),
+        (0.0, 1.0),
+        (-1.0, 0.0),
+        span_w=3.8,
+        arch_h=1.9,
+        ring_thickness=0.45,
+        offset_n0=-0.02,
+        offset_n1=0.28,
+        num_voussoirs=9,
+    )
 
     clear_scene_building_rings()
     osm_buildings = [
         b for b in osm_data.get("buildings", [])
         if b.get("region") == "r03_central_souqs"
+    ]
+
+    r03_corridors = [
+        [(175.0, 4.0), (300.0, 8.0), (440.0, 36.0), (595.0, 68.0)],
+        [(305.0, 155.0), (305.0, 260.0)],
+        [(510.0, 58.0), (510.0, 250.0)],
+        [(515.0, 145.0), (668.0, 145.0)],
     ]
 
     valid_blds = []
@@ -1497,22 +1814,18 @@ def build_region_r03_central_souqs(
         if osm_id in (5862586, 7880713):
             continue
         cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
-        # Keep Triple Souq corridor (`x = 292..334, y = -42..162`) clear
-        if 292.0 <= cx <= 334.0 and -42.0 <= cy <= 162.0:
-            continue
-        # Keep Street of the Chain & Mamluk Turba corridor clear
-        chain_y = 4.0 + max(0.0, (cx - 175.0) / 420.0) * 62.0
-        if abs(cy - chain_y) < 9.5:
-            continue
-        # Keep Khan el-Zeit corridor (`x = 296..314, y = 160..260`) clear
-        if 296.0 <= cx <= 314.0 and 160.0 <= cy <= 260.0:
-            continue
         ring = b.get("ring", [])
         if len(ring) < 3:
             continue
         rxs = [float(p[0]) for p in ring]
         rys = [float(p[1]) for p in ring]
         if (max(rxs) - min(rxs)) > 65.0 or (max(rys) - min(rys)) > 65.0:
+            continue
+        # Keep Triple Souq corridor (`x = 290..336, y = -42..164`) clear
+        if _ring_overlaps_rect(ring, 290.0, -42.0, 336.0, 164.0):
+            continue
+        # Keep Street of the Chain, Khan el-Zeit, El-Wad, and Suq al-Qattanin corridors clear
+        if any(_ring_overlaps_polyline(ring, corr, 9.5) for corr in r03_corridors):
             continue
         valid_blds.append(b)
         register_scene_building_ring(osm_id, ring)
@@ -1665,12 +1978,22 @@ def _build_st_james_cathedral_and_patriarchate(collector: MeshCollector, sign_at
             uv_scale=0.5,
         )
 
-    # 4. Armenian Patriarchate Road Buttress Arches & Monastery Compound Walls (`x = 50, y = -110..-360`)
+    # 4. Armenian Patriarchate Road Compound Walls, Vaulted Overpasses & Buttress Arches (`x = 52.0, y = -110..-360`)
+    _build_souq_street_corridor(
+        collector,
+        (52.0, -105.0),
+        (52.0, -355.0),
+        street_w=6.8,
+        wall_h=8.2,
+        with_arches=False,
+        with_shops=False,
+        seed=401,
+    )
     for py in (-125.0, -165.0, -205.0, -245.0, -285.0, -325.0):
         pz = street_elevation_z(52.0, py)
-        for sx in (-3.4, 3.4):
-            collector.add_box("Buildings_Walls", "mat_stone_boss", (52.0 + sx, py, pz + 3.2), (1.3, 1.2, 6.4), uv_scale=0.26)
-        collector.add_box("Buildings_Details", "mat_stone_boss", (52.0, py, pz + 5.9), (8.0, 1.15, 1.0), uv_scale=0.28, bottom_face=True)
+        for sx in (-3.2, 3.2):
+            collector.add_box("Buildings_Walls", "mat_stone_boss", (52.0 + sx, py, pz + 3.2), (1.3, 1.4, 6.4), uv_scale=0.26)
+        collector.add_box("Buildings_Details", "mat_stone_boss", (52.0, py, pz + 6.2), (7.8, 3.6, 1.8), uv_scale=0.28, bottom_face=True)
         build_street_lamp(collector, 54.6, py + 4.0, pz, height=4.2)
 
 
@@ -1753,21 +2076,21 @@ def build_region_r04_armenian_quarter(
         cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
         if cx < 86.0 and cy > -88.0:
             continue
-        # Keep St. James Cathedral & forecourt (`x = 112..154, y = -252..-210`) clear
-        if 112.0 <= cx <= 154.0 and -252.0 <= cy <= -210.0:
-            continue
-        # Keep Armenian Patriarchate Road (`x = 45..59, y = -385..-85`) clear
-        if 45.0 <= cx <= 59.0 and -385.0 <= cy <= -85.0:
-            continue
-        # Keep Zion Gate inner plaza (`x = 172..212, y = -418..-378`) clear
-        if 172.0 <= cx <= 212.0 and -418.0 <= cy <= -378.0:
-            continue
         ring = b.get("ring", [])
         if len(ring) < 3:
             continue
         rxs = [float(p[0]) for p in ring]
         rys = [float(p[1]) for p in ring]
         if (max(rxs) - min(rxs)) > 65.0 or (max(rys) - min(rys)) > 65.0:
+            continue
+        # Keep St. James Cathedral, forecourt & Ararat Street (`x = 108..178, y = -274..-208`) clear
+        if _ring_overlaps_rect(ring, 108.0, -274.0, 178.0, -208.0):
+            continue
+        # Keep Armenian Garden (`x = 12..46, y = -360..-115`) & Armenian Patriarchate Road (`x = 43..61, y = -395..-85`) clear
+        if _ring_overlaps_rect(ring, 12.0, -360.0, 61.0, -85.0):
+            continue
+        # Keep Zion Gate inner lane & plaza (`x = 125..215, y = -418..-376`) clear
+        if _ring_overlaps_rect(ring, 125.0, -418.0, 215.0, -376.0):
             continue
         valid_blds.append(b)
         register_scene_building_ring(osm_id, ring)
@@ -2007,26 +2330,135 @@ def _build_hurva_synagogue_and_roman_cardo(collector: MeshCollector, sign_atlas:
             # Sloped terracotta roof canopy over the eastern colonnade aisle (`x = 311.8..315.4`)
             collector.add_box("Buildings_Details", "mat_roof_tile", (313.5, float(cy) + 3.5, z_beam + 0.45), (3.8, 7.2, 0.35), uv_scale=0.32, bottom_face=True)
 
-    # 4. Four Sephardic Synagogues (`(366.0, -238.0)`) & Broad Wall (`(335.0, -78.0)`)
+    # 4. Four Sephardic Synagogues (`(366.0, -238.0)`), Tiferet Yisrael (`(492.0, -165.0)`) & Broad Wall (`(335.0, -78.0)`)
     sx, sy = 366.0, -238.0
     sz = street_elevation_z(sx, sy)
     collector.add_box("Buildings_Walls", "mat_stone_ashlar_aged", (sx, sy, sz + 3.8), (24.0, 20.0, 7.6), uv_scale=0.24)
+    collector.add_box("Buildings_Details", "mat_stone_mizzi", (sx, sy, sz + 7.75), (24.6, 20.6, 0.35), uv_scale=0.30)
+    # Western courtyard facade facing `(344.0, -238.0)` with arched synagogue doors & windows
+    for wy_off, is_door in ((-6.5, False), (-2.2, True), (2.2, True), (6.5, False)):
+        add_arched_opening_panel(
+            collector,
+            "Buildings_Openings",
+            "mat_wood_doors",
+            (sx - 12.04, sy + wy_off),
+            sz + (0.0 if is_door else 1.2),
+            sz + 2.6,
+            1.1,
+            2.2,
+            0.02,
+            (0.0, -1.0),
+            (-1.0, 0.0),
+            uv_rect=WOOD_DOOR_UV["door_wood" if is_door else "window_glass"],
+            num_voussoirs=7,
+            add_wall_spandrel=False,
+        )
+        add_arch_voussoirs(
+            collector,
+            "Buildings_Details",
+            "mat_stone_boss",
+            (sx - 12.04, sy + wy_off, sz + 2.6),
+            (0.0, -1.0),
+            (-1.0, 0.0),
+            span_w=2.35,
+            arch_h=1.15,
+            ring_thickness=0.32,
+            offset_n0=-0.02,
+            offset_n1=0.18,
+            num_voussoirs=7,
+        )
     for dx in (-5.5, 5.5):
         for dy in (-4.5, 4.5):
+            collector.add_branch_tube(
+                "Buildings_Walls",
+                "mat_stone_mizzi",
+                (sx + dx, sy + dy, sz + 7.6),
+                (sx + dx, sy + dy, sz + 9.2),
+                3.5,
+                3.4,
+                segments=12,
+                cap_end=True,
+            )
             collector.add_dome(
                 "Buildings_Details",
                 "mat_dome_lead",
-                (sx + dx, sy + dy, sz + 7.5),
+                (sx + dx, sy + dy, sz + 9.1),
                 radius=3.4,
                 height=2.8,
                 rings=6,
                 segments=12,
             )
 
+    # Tiferet Yisrael Synagogue (`Nisanov Synagogue` at `(492.0, -165.0)`)
+    tx_s, ty_s = 492.0, -165.0
+    tz_s = street_elevation_z(tx_s, ty_s)
+    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (tx_s, ty_s, tz_s + 6.2), (18.0, 18.0, 14.4), uv_scale=0.22)
+    collector.add_box("Buildings_Details", "mat_stone_boss", (tx_s, ty_s, tz_s + 13.5), (18.6, 18.6, 0.45), uv_scale=0.30)
+    for wy_t in (-4.8, 0.0, 4.8):
+        add_arched_opening_panel(
+            collector,
+            "Buildings_Openings",
+            "mat_wood_doors",
+            (tx_s - 9.04, ty_s + wy_t),
+            tz_s + (0.0 if wy_t == 0.0 else 3.8),
+            tz_s + (3.2 if wy_t == 0.0 else 8.6),
+            1.3,
+            2.6,
+            0.02,
+            (0.0, -1.0),
+            (-1.0, 0.0),
+            uv_rect=WOOD_DOOR_UV["door_wood" if wy_t == 0.0 else "window_glass"],
+            num_voussoirs=9,
+            add_wall_spandrel=False,
+        )
+        add_arch_voussoirs(
+            collector,
+            "Buildings_Details",
+            "mat_stone_boss",
+            (tx_s - 9.04, ty_s + wy_t, tz_s + (3.2 if wy_t == 0.0 else 8.6)),
+            (0.0, -1.0),
+            (-1.0, 0.0),
+            span_w=2.75,
+            arch_h=1.35,
+            ring_thickness=0.36,
+            offset_n0=-0.02,
+            offset_n1=0.20,
+            num_voussoirs=9,
+        )
+    collector.add_branch_tube(
+        "Buildings_Walls",
+        "mat_stone_mizzi",
+        (tx_s, ty_s, tz_s + 13.4),
+        (tx_s, ty_s, tz_s + 17.6),
+        6.4,
+        6.2,
+        segments=14,
+        cap_end=True,
+    )
+    collector.add_dome(
+        "Buildings_Details",
+        "mat_stone_mizzi",
+        (tx_s, ty_s, tz_s + 17.5),
+        radius=6.25,
+        height=5.8,
+        rings=8,
+        segments=16,
+    )
+
     # Hezekiah's Broad Wall (`HaChoma HaRechava`, 7m wide First Temple stone fortification at `(335.0, -78.0)`)
     bwx, bwy = 335.0, -78.0
     bwz = street_elevation_z(bwx, bwy)
-    collector.add_box("Buildings_Walls", "mat_stone_rubble", (bwx, bwy, bwz + 1.4), (7.0, 18.0, 2.8), uv_scale=0.22)
+    # Stepped ancient stone fortification courses + low dressed-stone archaeological viewing enclosure
+    collector.add_box("Buildings_Walls", "mat_stone_boss", (bwx, bwy, bwz + 0.65), (7.4, 18.4, 1.3), uv_scale=0.18)
+    collector.add_box("Buildings_Walls", "mat_stone_rubble", (bwx - 0.3, bwy + 0.5, bwz + 1.85), (6.6, 16.5, 1.4), uv_scale=0.20)
+    collector.add_box("Buildings_Walls", "mat_stone_rubble", (bwx + 0.4, bwy - 1.2, bwz + 2.75), (5.2, 12.0, 0.9), uv_scale=0.22)
+    for px_w, py_w, sx_w, sy_w in (
+        (bwx, bwy - 10.6, 11.4, 0.55),
+        (bwx, bwy + 10.6, 11.4, 0.55),
+        (bwx - 5.5, bwy, 0.55, 21.6),
+        (bwx + 5.5, bwy, 0.55, 21.6),
+    ):
+        collector.add_box("Buildings_Details", "mat_stone_mizzi", (px_w, py_w, bwz + 0.45), (sx_w, sy_w, 0.9), uv_scale=0.35)
 
 
 def build_region_r05_jewish_quarter(
@@ -2083,24 +2515,30 @@ def build_region_r05_jewish_quarter(
         if osm_id in (5862586, 7880713, 45081545):
             continue
         cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
-        # Keep Hurva Synagogue & Hurva Square (`x = 328..386, y = -158..-94`) clear
-        if 328.0 <= cx <= 386.0 and -158.0 <= cy <= -94.0:
-            continue
-        # Keep Southern Roman Cardo corridor (`x = 298..318, y = -198..-52`) clear
-        if 298.0 <= cx <= 318.0 and -198.0 <= cy <= -52.0:
-            continue
-        # Keep Four Sephardic Synagogues (`x = 350..382, y = -252..-224`) clear
-        if 350.0 <= cx <= 382.0 and -252.0 <= cy <= -224.0:
-            continue
-        # Keep Hezekiah's Broad Wall (`x = 326..344, y = -90..-66`) clear
-        if 326.0 <= cx <= 344.0 and -90.0 <= cy <= -66.0:
-            continue
         ring = b.get("ring", [])
         if len(ring) < 3:
             continue
         rxs = [float(p[0]) for p in ring]
         rys = [float(p[1]) for p in ring]
         if (max(rxs) - min(rxs)) > 65.0 or (max(rys) - min(rys)) > 65.0:
+            continue
+        # Keep Hurva Synagogue & Hurva Square (`x = 326..388, y = -160..-92`) clear
+        if _ring_overlaps_rect(ring, 326.0, -160.0, 388.0, -92.0):
+            continue
+        # Keep Southern Roman Cardo corridor (`x = 296..320, y = -198..-52`) clear
+        if _ring_overlaps_rect(ring, 296.0, -198.0, 320.0, -52.0):
+            continue
+        # Keep Four Sephardic Synagogues & Square (`x = 330..384, y = -256..-220`) clear
+        if _ring_overlaps_rect(ring, 330.0, -256.0, 384.0, -220.0):
+            continue
+        # Keep Hezekiah's Broad Wall & Plaza (`x = 320..350, y = -104..-62`) clear
+        if _ring_overlaps_rect(ring, 320.0, -104.0, 350.0, -62.0):
+            continue
+        # Keep Tiferet Yisrael & Karaite Street (`x = 452..506, y = -180..-150`) clear
+        if _ring_overlaps_rect(ring, 452.0, -180.0, 506.0, -150.0):
+            continue
+        # Keep Batei Mahaseh Square (`x = 418..455, y = -325..-295`) clear
+        if _ring_overlaps_rect(ring, 418.0, -325.0, 455.0, -295.0):
             continue
         valid_blds.append(b)
         register_scene_building_ring(osm_id, ring)
@@ -2310,21 +2748,24 @@ def _build_western_wall_and_plaza(collector: MeshCollector, sign_atlas: Dict[str
                 uv_scale=0.4,
             )
 
-    # 4. Mughrabi Bridge Ramp (`x = 595..665.5, y = -26.0`) leading up to Bab al-Maghariba (`z = pz + 7.2m`)
-    n_ramp = 10
+    # 4. Mughrabi Bridge Ramp (`x = 592..665.5, y = -26.0`) leading up to Bab al-Maghariba (`z = pz + 7.2m`)
+    #    Built with warm natural timber (`mat_bark`) and grounded steel support piers all the way to the base!
+    n_ramp = 12
     for i in range(n_ramp):
         t0 = i / n_ramp
         t1 = (i + 1) / n_ramp
-        rx0 = 596.0 + 69.5 * t0
-        rx1 = 596.0 + 69.5 * t1
+        rx0 = 592.0 + 73.5 * t0
+        rx1 = 592.0 + 73.5 * t1
         rmx = 0.5 * (rx0 + rx1)
-        rz = pz + 0.6 + 6.6 * (0.5 * (t0 + t1))
-        # Timber ramp deck & side parapets
-        collector.add_box("Buildings_Details", "mat_wood_doors", (rmx, -26.0, rz), (7.2, 3.6, 0.45), uv_scale=0.3)
-        collector.add_box("Buildings_Details", "mat_wood_doors", (rmx, -27.7, rz + 0.75), (7.2, 0.22, 1.1), uv_scale=0.3)
-        collector.add_box("Buildings_Details", "mat_wood_doors", (rmx, -24.3, rz + 0.75), (7.2, 0.22, 1.1), uv_scale=0.3)
-        # Support column pier
-        collector.add_box("Buildings_Details", "mat_iron_dark", (rmx, -26.0, pz + (rz - pz) * 0.5), (0.55, 2.6, max(0.5, rz - pz)), uv_scale=0.3)
+        rz = pz + 0.35 + 6.85 * (0.5 * (t0 + t1))
+        g_z = min(pz, street_elevation_z(rmx, -26.0)) - 1.5
+        col_h = max(1.0, rz - g_z)
+        # Timber ramp deck & side timber screens (`mat_bark` so there are zero souq door/carpet atlas UVs!)
+        collector.add_box("Buildings_Details", "mat_bark", (rmx, -26.0, rz), (6.3, 3.6, 0.55), uv_scale=0.35)
+        collector.add_box("Buildings_Details", "mat_bark", (rmx, -27.7, rz + 0.85), (6.3, 0.22, 1.35), uv_scale=0.35)
+        collector.add_box("Buildings_Details", "mat_bark", (rmx, -24.3, rz + 0.85), (6.3, 0.22, 1.35), uv_scale=0.35)
+        # Grounded steel support piers reaching all the way into the ground (`g_z .. rz`)
+        collector.add_box("Buildings_Details", "mat_iron_dark", (rmx, -26.0, g_z + 0.5 * col_h), (0.55, 2.6, col_h), uv_scale=0.3)
 
     # Bab al-Maghariba (Mughrabi Gate) portal on the Western Wall at `(665.8, -26.0, pz + 7.2)`
     add_arched_opening_panel(
@@ -2405,8 +2846,9 @@ def build_region_r06_western_wall_dung_gate(
         height=13.5,
     )
 
-    # 3. Western Wall (`HaKotel`), Plaza, Wilson's Arch & Mughrabi Bridge
+    # 3. Western Wall (`HaKotel`), Plaza, Wilson's Arch, Mughrabi Bridge & Dung Gate Ascent Road
     _build_western_wall_and_plaza(collector, sign_atlas)
+    _build_souq_street_corridor(collector, (615.0, -178.0), (615.0, -108.0), street_w=8.5, wall_h=7.8, with_arches=False, with_shops=True, seed=601)
 
     # 4. OSM Buildings in `r06_western_wall_dung_gate`
     clear_scene_building_rings()
@@ -2420,18 +2862,18 @@ def build_region_r06_western_wall_dung_gate(
         if osm_id in (5862586, 7880713):
             continue
         cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
-        # Keep Western Wall Prayer Plaza & Upper Plaza (`x = 578..668, y = -48..62`) clear
-        if 578.0 <= cx <= 668.0 and -48.0 <= cy <= 62.0:
-            continue
-        # Keep Dung Gate approach & inner road (`x = 595..635, y = -225..-165`) clear
-        if 595.0 <= cx <= 635.0 and -225.0 <= cy <= -165.0:
-            continue
         ring = b.get("ring", [])
         if len(ring) < 3:
             continue
         rxs = [float(p[0]) for p in ring]
         rys = [float(p[1]) for p in ring]
         if (max(rxs) - min(rxs)) > 65.0 or (max(rys) - min(rys)) > 65.0:
+            continue
+        # Keep Western Wall Prayer Plaza & Upper Plaza (`x = 576..668, y = -52..64`) clear
+        if _ring_overlaps_rect(ring, 576.0, -52.0, 668.0, 64.0):
+            continue
+        # Keep Dung Gate approach & inner road (`x = 592..638, y = -225..-95`) clear
+        if _ring_overlaps_rect(ring, 592.0, -225.0, 638.0, -95.0):
             continue
         valid_blds.append(b)
         register_scene_building_ring(osm_id, ring)
@@ -3217,11 +3659,57 @@ def _build_muslim_quarter_landmarks(collector: MeshCollector, sign_atlas: Dict[s
     collector.add_box("Buildings_Walls", "mat_stone_mizzi", (ex - 5.0, ey + 9.2, ez + 5.8), (28.0, 9.0, 11.6), uv_scale=0.24)
     collector.add_box("Buildings_Walls", "mat_stone_ashlar", (ex - 5.0, ey - 9.2, ez + 5.2), (28.0, 9.0, 10.4), uv_scale=0.24)
 
-    # 3. Austrian Hospice (`(445.0, 398.0)`) at the Via Dolorosa / El-Wad Corner
-    ah_x, ah_y = 445.0, 398.0
+    # 3. Austrian Hospice (`(448.0, 412.0)`) & Via Dolorosa Station III at the Via Dolorosa / El-Wad Corner
+    ah_x, ah_y = 448.0, 412.0
     ah_z = street_elevation_z(ah_x, ah_y)
     collector.add_box("Buildings_Walls", "mat_stone_mizzi", (ah_x, ah_y, ah_z + 6.2), (24.0, 18.0, 12.4), uv_scale=0.22)
     collector.add_box("Buildings_Details", "mat_terracotta", (ah_x, ah_y, ah_z + 12.5), (24.6, 18.6, 0.45), uv_scale=0.30)
+    # Western & Southern arched windows + wrought-iron balcony + Station III Chapel Portal facing `(422, 398)`
+    for wy_off in (-5.2, 0.0, 5.2):
+        for wz_lvl, is_portal in ((0.0, wy_off == 0.0), (5.8, False)):
+            add_arched_opening_panel(
+                collector,
+                "Buildings_Openings",
+                "mat_wood_doors",
+                (ah_x - 12.04, ah_y + wy_off),
+                ah_z + (0.0 if is_portal else wz_lvl + 1.2),
+                ah_z + (3.2 if is_portal else wz_lvl + 3.8),
+                1.1,
+                2.2,
+                0.02,
+                (0.0, -1.0),
+                (-1.0, 0.0),
+                uv_rect=WOOD_DOOR_UV["door_wood" if is_portal else "window_glass"],
+                num_voussoirs=7,
+                add_wall_spandrel=False,
+            )
+            add_arch_voussoirs(
+                collector,
+                "Buildings_Details",
+                "mat_stone_boss",
+                (ah_x - 12.04, ah_y + wy_off, ah_z + (3.2 if is_portal else wz_lvl + 3.8)),
+                (0.0, -1.0),
+                (-1.0, 0.0),
+                span_w=2.35,
+                arch_h=1.15,
+                ring_thickness=0.34,
+                offset_n0=-0.02,
+                offset_n1=0.20,
+                num_voussoirs=7,
+            )
+    collector.add_box("Buildings_Details", "mat_iron_dark", (ah_x - 12.6, ah_y, ah_z + 5.6), (1.1, 6.2, 0.95), uv_scale=0.4)
+
+    # Via Dolorosa Eastern Street Corridor (`(650.0, 462.0) -> (750.0, 462.0)`)
+    _build_souq_street_corridor(collector, (650.0, 462.0), (750.0, 462.0), street_w=6.2, wall_h=8.4, with_arches=True, with_shops=True, seed=801)
+
+    # NE Corner Citadel Bastion: Burj al-Laqlaq (`Stork Tower` at `(815.0, 768.0)`)
+    st_x, st_y = 815.0, 768.0
+    st_z = street_elevation_z(st_x, st_y)
+    collector.add_box("CityWalls", "mat_stone_boss", (st_x, st_y, st_z + 7.6), (15.0, 15.0, 15.2), uv_scale=0.22)
+    collector.add_box("CityWalls", "mat_stone_mizzi", (st_x, st_y, st_z + 15.4), (15.6, 15.6, 0.45), uv_scale=0.30)
+    for mx_off in (-5.6, -2.8, 0.0, 2.8, 5.6):
+        collector.add_box("CityWalls", "mat_stone_boss", (st_x + mx_off, st_y - 7.1, st_z + 16.2), (1.4, 0.8, 1.3), uv_scale=0.30)
+        collector.add_box("CityWalls", "mat_stone_boss", (st_x - 7.1, st_y + mx_off, st_z + 16.2), (0.8, 1.4, 1.3), uv_scale=0.30)
 
     # 4. Crusader Church of St. Anne (`(835.2, 528.7)`) & Pools of Bethesda (`(786.5, 537.5)`)
     sa_x, sa_y = 835.2, 528.7
@@ -3428,24 +3916,27 @@ def build_region_r08_muslim_quarter_north_gates(
         if osm_id in (5862586, 7880713, 126864879, 126864878):
             continue
         cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
-        # Keep Damascus Gate plaza & inner fork (`x = 225..295, y = 515..595`) clear
-        if 225.0 <= cx <= 295.0 and 515.0 <= cy <= 595.0:
-            continue
-        # Keep Herod's Gate portal & inner street (`x = 548..588, y = 672..725`) clear
-        if 548.0 <= cx <= 588.0 and 672.0 <= cy <= 725.0:
-            continue
-        # Keep Lions' Gate & Via Dolorosa eastern corridor (`x = 765..895, y = 452..555`) clear
-        if 765.0 <= cx <= 895.0 and 452.0 <= cy <= 555.0:
-            continue
-        # Keep Ecce Homo Arch & Austrian Hospice Via Dolorosa corridor (`x = 425..525, y = 385..438`) clear
-        if 425.0 <= cx <= 525.0 and 385.0 <= cy <= 438.0:
-            continue
         ring = b.get("ring", [])
         if len(ring) < 3:
             continue
         rxs = [float(p[0]) for p in ring]
         rys = [float(p[1]) for p in ring]
         if (max(rxs) - min(rxs)) > 65.0 or (max(rys) - min(rys)) > 65.0:
+            continue
+        # Keep Damascus Gate plaza & inner fork (`x = 225..295, y = 510..595`) clear
+        if _ring_overlaps_rect(ring, 225.0, 510.0, 295.0, 595.0):
+            continue
+        # Keep Herod's Gate portal & inner street (`x = 548..588, y = 672..725`) clear
+        if _ring_overlaps_rect(ring, 548.0, 672.0, 588.0, 725.0):
+            continue
+        # Keep Lions' Gate & Via Dolorosa eastern corridor (`x = 640..895, y = 450..555`) clear
+        if _ring_overlaps_rect(ring, 640.0, 450.0, 895.0, 555.0):
+            continue
+        # Keep Ecce Homo Arch & Austrian Hospice Via Dolorosa corridor (`x = 410..525, y = 382..438`) clear
+        if _ring_overlaps_rect(ring, 410.0, 382.0, 525.0, 438.0):
+            continue
+        # Keep Stork Tower / Burj al-Laqlaq NE Bastion Plaza (`x = 780..832, y = 730..782`) clear
+        if _ring_overlaps_rect(ring, 780.0, 730.0, 832.0, 782.0):
             continue
         valid_blds.append(b)
         register_scene_building_ring(osm_id, ring)
