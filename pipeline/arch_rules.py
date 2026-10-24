@@ -91,9 +91,7 @@ SHOP_SIGN_KEYS: List[str] = [
 
 AWNING_MATS: List[str] = [
     "mat_awning_red",
-    "mat_awning_striped",
     "mat_awning_green",
-    "mat_corrugated_metal",
 ]
 
 # Active walkable player/camera corridors for 3-Tier Architectural LOD calculation
@@ -1031,8 +1029,11 @@ def build_building_from_footprint(
 
             if bay_w >= 2.1:
                 h_val = (building_id * 7 + i * 13 + b_idx * 5) % 10
-                if all_upper_balconies:
-                    if b_idx % 4 == 1:
+                if building_id == 7004:
+                    # Christian Information Centre: classic stone portal & glazed bays (no green shutters)
+                    mode = "cafe_glass" if b_idx % 2 == 0 else "wood_door"
+                elif all_upper_balconies:
+                    if b_idx % 3 == 1:
                         mode = "cafe_glass"
                     elif b_idx % 4 == 3:
                         mode = "steel_shutter"
@@ -1056,7 +1057,11 @@ def build_building_from_footprint(
                         mode = "souq_open"
 
                 sh_var = shutter_keys[(building_id + i * 3 + b_idx) % len(shutter_keys)]
-                show_sign = (mode in ("souq_open", "cafe_glass", "steel_shutter")) and (b_idx % 2 == 0) and not all_upper_balconies
+                if building_id in (7002, 7003) and sh_var == "shutter_rusty_green":
+                    sh_var = "shutter_graffiti_1"
+                show_sign = (mode in ("souq_open", "cafe_glass", "steel_shutter")) and (
+                    (b_idx != num_bays // 2) if all_upper_balconies else (b_idx % 2 == 0)
+                )
                 s_key = forced_sign_key if (forced_sign_key and b_idx == num_bays // 2) else SHOP_SIGN_KEYS[(building_id + i + b_idx) % len(SHOP_SIGN_KEYS)]
                 s_uv = get_sign_uv(sign_atlas, s_key) if show_sign else None
                 awn_mat = AWNING_MATS[(building_id + i + b_idx) % len(AWNING_MATS)]
@@ -1288,20 +1293,37 @@ def build_jaffa_gate_monument(
     collector.add_box("JaffaGate_Monument", "mat_stone_boss", (0.9, -4.85, 5.05), (6.8, 1.5, 1.5), bottom_face=True)
 
     # 5. Groin/Barrel Vaulted Ribs inside the L-Passage (`z = 4.1 .. 5.5`)
-    for arch_x in (-7.2, -5.0, -2.8, 1.0):
+    # 5a. West-East entry arm ribs spanning cleanly wall-to-wall (`y = 0.2 .. 5.2`)
+    for arch_x in (-7.2, -5.0, -2.8):
         add_arch_voussoirs(
             collector,
             "JaffaGate_Monument",
             "mat_stone_ashlar_aged",
-            (arch_x, 2.6, 4.1),
+            (arch_x, 2.7, 4.1),
             (0.0, 1.0),
             (-1.0, 0.0),
-            span_w=4.8,
+            span_w=4.6,
             arch_h=1.25,
             ring_thickness=0.38,
-            offset_n0=-0.45,
-            offset_n1=0.45,
-            num_voussoirs=7,
+            offset_n0=-0.42,
+            offset_n1=0.42,
+            num_voussoirs=5,
+        )
+    # 5b. North-South turn chamber ribs spanning cleanly East-West (`x = -2.2 .. 4.0`, zero hanging stubs!)
+    for arch_y in (-0.4, -3.0):
+        add_arch_voussoirs(
+            collector,
+            "JaffaGate_Monument",
+            "mat_stone_ashlar_aged",
+            (0.9, arch_y, 4.05),
+            (1.0, 0.0),
+            (0.0, -1.0),
+            span_w=5.8,
+            arch_h=1.30,
+            ring_thickness=0.38,
+            offset_n0=-0.42,
+            offset_n1=0.42,
+            num_voussoirs=5,
         )
     # South Exit Portal Arch (`y = -5.5, x = -2.2 .. 4.0`)
     add_arch_voussoirs(
@@ -1316,13 +1338,16 @@ def build_jaffa_gate_monument(
         ring_thickness=0.45,
         offset_n0=-0.65,
         offset_n1=0.25,
-        num_voussoirs=9,
+        num_voussoirs=7,
         keystone_boost=0.09,
     )
 
-    # --- B. West Outer Monumental Facade (`x = -8.5`) ---
+    # --- B. West Outer Monumental Pointed Portal (`x = -8.5`) ---
     collector.add_box("JaffaGate_Monument", "mat_stone_boss", (-7.4, 0.35, 2.6), (2.2, 0.7, 5.4))
     collector.add_box("JaffaGate_Monument", "mat_stone_boss", (-7.4, 4.85, 2.6), (2.2, 0.7, 5.4))
+
+    # Recessed stone tympanum filling the pointed outer arch above the portal (`z = 4.35 .. 7.2`)
+    collector.add_box("JaffaGate_Monument", "mat_stone_ashlar_aged", (-8.12, 2.6, 5.65), (0.45, 4.3, 2.6), bottom_face=True)
 
     add_arch_voussoirs(
         collector,
@@ -1332,11 +1357,11 @@ def build_jaffa_gate_monument(
         (0.0, 1.0),
         (-1.0, 0.0),
         span_w=3.8,
-        arch_h=1.45,
+        arch_h=1.35,
         ring_thickness=0.38,
         offset_n0=-0.45,
         offset_n1=0.18,
-        num_voussoirs=9,
+        num_voussoirs=7,
         keystone_boost=0.08,
     )
 
@@ -1344,21 +1369,34 @@ def build_jaffa_gate_monument(
         collector,
         "JaffaGate_Monument",
         "mat_stone_boss",
-        (-8.45, 2.6, 5.15),
+        (-8.45, 2.6, 4.65),
         (0.0, 1.0),
         (-1.0, 0.0),
-        span_w=6.0,
-        arch_h=2.45,
+        span_w=5.6,
+        arch_h=2.55,
         ring_thickness=0.52,
-        offset_n0=-0.15,
+        offset_n0=-0.25,
         offset_n1=0.42,
-        num_voussoirs=11,
-        keystone_boost=0.12,
+        num_voussoirs=9,
+        keystone_boost=0.14,
     )
 
-    # Sultan Suleiman Inscription Tympanum Plaque (`x = -8.35, y = 1.1 .. 4.1, z = 5.3 .. 6.5`)
-    collector.add_box("JaffaGate_Monument", "mat_stone_ashlar_aged", (-8.38, 2.6, 5.9), (0.24, 3.1, 1.25))
-    collector.add_box("JaffaGate_Monument", "mat_stone_mizzi", (-8.48, 2.6, 5.9), (0.08, 2.7, 0.92))
+    # Sultan Suleiman Inscription Tympanum Plaque (`x = -8.35, y = 1.1 .. 4.1, z = 4.8 .. 6.1`)
+    collector.add_box("JaffaGate_Monument", "mat_stone_ashlar_aged", (-8.34, 2.6, 5.45), (0.24, 3.1, 1.25))
+    collector.add_box("JaffaGate_Monument", "mat_stone_mizzi", (-8.44, 2.6, 5.45), (0.08, 2.7, 0.92))
+
+    # Twin carved Ottoman stone rosettes on the portal spandrels + upper tower
+    for ros_y in (0.15, 5.05):
+        collector.add_cylinder(
+            "JaffaGate_Monument",
+            "mat_stone_mizzi",
+            (-8.55, ros_y, 6.35),
+            0.38,
+            0.34,
+            0.12,
+            segments=8,
+            smooth=False,
+        )
 
     # Projecting Corbelled Stone Machicolation Box high on the West Facade (`z = 11.4 .. 13.7`)
     for c_y in (0.7, 1.65, 2.6, 3.55, 4.5):
@@ -1367,7 +1405,6 @@ def build_jaffa_gate_monument(
     collector.add_box("JaffaGate_Monument", "mat_stone_boss", (-8.98, 2.6, 12.65), (0.95, 4.3, 2.25), bottom_face=True)
 
     for slit_y in (-2.6, 7.1):
-        collector.add_box("JaffaGate_Monument", "mat_iron_dark", (-8.52, slit_y, 9.2), (0.12, 0.22, 1.95))
         collector.add_cylinder(
             "JaffaGate_Monument",
             "mat_stone_boss",
@@ -1375,7 +1412,7 @@ def build_jaffa_gate_monument(
             0.42,
             0.38,
             0.14,
-            segments=10,
+            segments=8,
             smooth=False,
         )
 
@@ -1414,8 +1451,8 @@ def build_jaffa_gate_monument(
     ]
     sw_wall_pts = [
         (13.5, -78.0),
-        (16.0, -115.0),
-        (20.0, -155.0),
+        (13.5, -138.0),
+        (115.0, -138.0),
     ]
     for wall_chain in (nw_wall_pts, sw_wall_pts):
         for i in range(len(wall_chain) - 1):
@@ -1508,8 +1545,6 @@ def build_citadel_and_tower_of_david(
     # --- 2. Exposed Date Palm Trees & Archaeological Ruin Blocks inside the Widened Moat ---
     build_palm_tree(collector, 20.5, -21.2, moat_z, height=13.2, seed=101)
     build_palm_tree(collector, 35.5, -21.5, moat_z, height=11.5, seed=106)
-    build_olive_tree(collector, 29.0, -20.5, moat_z, height=6.6, seed=102, with_kerb=False)
-    build_cypress_tree(collector, 12.2, -38.0, moat_z, height=9.2, seed=103, with_kerb=False)
 
     ruin_blocks = [
         (16.5, -19.5, 2.4, 1.5, 1.4, 0.15),
@@ -1521,18 +1556,42 @@ def build_citadel_and_tower_of_david(
     for rx, ry, sx, sy, sz, rot in ruin_blocks:
         collector.add_box("Citadel_TowerOfDavid", "mat_stone_boss", (rx, ry, moat_z + sz * 0.5), (sx, sy, sz), rot_z=rot)
 
-    # --- 3. Continuous Battered Stone Glacis + Unified Citadel Curtain Wall (`mat_stone_boss`) ---
+    # --- 3. Continuous Mitered Battered Stone Glacis + Unified Citadel Curtain Wall (`mat_stone_boss`) ---
     citadel_ring = [
         (15.0, -29.0),  # NW corner (Phasael Tower base)
         (14.0, -54.0),  # West curtain wall
         (13.5, -78.0),  # SW Minaret Bastion corner
-        (46.0, -82.0),  # South curtain wall
-        (56.0, -54.0),  # SE Bastion
-        (50.0, -29.0),  # NE Gatehouse corner
+        (48.0, -82.0),  # South curtain wall
+        (58.0, -54.0),  # SE Bastion
+        (56.0, -29.0),  # NE Gatehouse & Omar Square corner
     ]
     n_cit = len(citadel_ring)
     glacis_top_z = 1.4
     curtain_top_z = 14.6
+    glacis_flare = 3.4
+
+    # Precompute segment outward normals and mitered corner normals so the 6-sided glacis has zero corner gaps!
+    seg_normals: List[Vec2] = []
+    for i in range(n_cit):
+        cp0 = citadel_ring[i]
+        cp1 = citadel_ring[(i + 1) % n_cit]
+        dx, dy = cp1[0] - cp0[0], cp1[1] - cp0[1]
+        sl = math.hypot(dx, dy)
+        seg_normals.append((dy / sl, -dx / sl))
+
+    miter_normals: List[Vec2] = []
+    for i in range(n_cit):
+        n_prev = seg_normals[(i - 1) % n_cit]
+        n_curr = seg_normals[i]
+        mx = n_prev[0] + n_curr[0]
+        my = n_prev[1] + n_curr[1]
+        ml = math.hypot(mx, my)
+        if ml > 1e-5:
+            mx, my = mx / ml, my / ml
+            cos_half = max(0.55, mx * n_curr[0] + my * n_curr[1])
+            miter_normals.append((mx / cos_half, my / cos_half))
+        else:
+            miter_normals.append(n_curr)
 
     for i in range(n_cit):
         cp0 = citadel_ring[i]
@@ -1541,12 +1600,13 @@ def build_citadel_and_tower_of_david(
         dy = cp1[1] - cp0[1]
         seg_l = math.hypot(dx, dy)
         tx, ty = dx / seg_l, dy / seg_l
-        nx, ny = ty, -tx
+        nx, ny = seg_normals[i]
+        mn0 = miter_normals[i]
+        mn1 = miter_normals[(i + 1) % n_cit]
 
-        # 3a. Sloped Battered Stone Glacis (`z = -6.0 .. +1.4m`, flaring 3.4m outward into the moat)
-        glacis_flare = 3.4
-        gb0 = (cp0[0] + nx * glacis_flare, cp0[1] + ny * glacis_flare, moat_z)
-        gb1 = (cp1[0] + nx * glacis_flare, cp1[1] + ny * glacis_flare, moat_z)
+        # 3a. Watertight Mitered Sloped Battered Stone Glacis (`z = -6.0 .. +1.4m`)
+        gb0 = (cp0[0] + mn0[0] * glacis_flare, cp0[1] + mn0[1] * glacis_flare, moat_z)
+        gb1 = (cp1[0] + mn1[0] * glacis_flare, cp1[1] + mn1[1] * glacis_flare, moat_z)
         gt1 = (cp1[0], cp1[1], glacis_top_z)
         gt0 = (cp0[0], cp0[1], glacis_top_z)
         collector.add_quad(
@@ -1649,42 +1709,51 @@ def build_citadel_and_tower_of_david(
     collector.add_box("Citadel_TowerOfDavid", "mat_stone_ashlar_aged", (px + 3.2, py + 1.8, 27.7), (4.4, 4.0, 2.8))
     collector.add_dome("Citadel_TowerOfDavid", "mat_stone_ashlar_aged", (px + 3.2, py + 1.8, 29.1), radius=1.8, height=1.2)
 
-    # --- 5. Arched Stone Citadel Moat Bridge (`x = 42..47, y = -29.0..-15.2`) & Museum Entrance ---
+    # --- 5. Arched Stone Citadel Moat Bridge (`x = 42..47, y = -29.0..-15.2`), NE Bastion & Museum Entrance ---
     bx = 44.5
     for pier_y in (-19.8, -24.5):
         collector.add_box("Citadel_TowerOfDavid", "mat_stone_boss", (bx, pier_y, -2.8), (4.8, 1.4, 6.4))
-    collector.add_box("Citadel_TowerOfDavid", "mat_paving_flagstone", (bx, -22.1, 0.28), (4.6, 14.0, 0.55), bottom_face=True)
-    for side_x in (bx - 2.15, bx + 2.15):
-        collector.add_box("Citadel_TowerOfDavid", "mat_stone_ashlar_aged", (side_x, -22.1, 0.72), (0.38, 14.0, 0.42))
+    collector.add_box("Citadel_TowerOfDavid", "mat_paving_flagstone", (bx, -22.1, 0.28), (4.8, 14.4, 0.55), bottom_face=True)
+    for side_x in (bx - 2.2, bx + 2.2):
+        collector.add_box("Citadel_TowerOfDavid", "mat_stone_ashlar_aged", (side_x, -22.1, 0.72), (0.42, 14.4, 0.42))
         build_iron_railing(collector, (side_x, -15.2, 0.94), (side_x, -28.8, 0.94), height=0.68)
 
-    collector.add_box("Citadel_TowerOfDavid", "mat_stone_boss", (bx, -30.5, 5.2), (7.4, 3.8, 10.4))
+    # Solid Gatehouse Bastion extending down to moat_z (-6.0) so zero gap exists between bridge parapet and glacis
+    collector.add_box("Citadel_TowerOfDavid", "mat_stone_boss", (bx, -30.2, 2.4), (8.4, 4.4, 16.8))
+    # Prominent Citadel Northeast Bastion Tower (`x = 49.0..58.0, y = -29.5..-16.2, z = -6.0..15.2m`)
+    # flanking the south side of Omar Square so `omar_square_west` & `omar_square_east` see the medieval curtain wall!
+    collector.add_box("Citadel_TowerOfDavid", "mat_stone_boss", (53.2, -23.0, 4.3), (9.6, 13.4, 20.6))
+    for mx_b in (49.5, 52.0, 54.5, 57.0):
+        collector.add_box("Citadel_TowerOfDavid", "mat_stone_boss", (mx_b, -16.6, 15.2), (1.4, 0.65, 1.3))
+
+    # Recessed wooden museum entrance double doors (`door_wood` quadrant) + iron-strapped frame
+    collector.add_box("Citadel_TowerOfDavid", "mat_iron_dark", (bx, -28.02, 2.15), (3.3, 0.22, 3.6))
+    collector.add_quad(
+        "Buildings_Openings",
+        "mat_wood_doors",
+        (bx - 1.5, -27.88, 0.42),
+        (bx + 1.5, -27.88, 0.42),
+        (bx + 1.5, -27.88, 3.85),
+        (bx - 1.5, -27.88, 3.85),
+        uv_rect=WOOD_DOOR_UV["door_wood"],
+        expected_normal=(0.0, 1.0, 0.0),
+    )
     add_arch_voussoirs(
         collector,
         "Citadel_TowerOfDavid",
         "mat_stone_boss",
-        (bx, -28.55, 2.8),
+        (bx, -27.95, 2.85),
         (1.0, 0.0),
         (0.0, 1.0),
         span_w=3.2,
         arch_h=1.45,
-        ring_thickness=0.35,
-        offset_n0=-0.4,
-        offset_n1=0.18,
+        ring_thickness=0.38,
+        offset_n0=-0.45,
+        offset_n1=0.22,
         num_voussoirs=7,
     )
-    collector.add_quad(
-        "Buildings_Openings",
-        "mat_wood_doors",
-        (bx + 1.5, -28.65, 0.45),
-        (bx - 1.5, -28.65, 0.45),
-        (bx - 1.5, -28.65, 3.95),
-        (bx + 1.5, -28.65, 3.95),
-        uv_rect=WOOD_DOOR_UV["door_wood"],
-        expected_normal=(0.0, 1.0, 0.0),
-    )
     tod_uv = get_sign_uv(sign_atlas, "tower_of_david_museum")
-    build_fascia_sign(collector, (bx, -28.52, 4.95), (1.0, 0.0), (0.0, 1.0), width=2.8, height=1.1, sign_uv_rect=tod_uv)
+    build_fascia_sign(collector, (bx, -27.92, 4.95), (1.0, 0.0), (0.0, 1.0), width=2.8, height=1.1, sign_uv_rect=tod_uv)
     build_street_name_plate(collector, (41.6, -15.35, 1.25), (0.0, 1.0), tod_uv, width=1.45, height=0.68)
 
     # --- 6. Mamluk Citadel Minaret (`x = 18.0, y = -66.0`) ---
@@ -1746,8 +1815,8 @@ def build_hero_omar_square_and_david_street(
         collector,
         [
             (25.2, 14.5),
-            (50.0, 14.5),
-            (50.0, 26.5),
+            (48.5, 14.5),
+            (48.5, 26.5),
             (22.0, 26.5),
             (22.0, 17.5),
             (23.3, 15.4),
@@ -1771,11 +1840,11 @@ def build_hero_omar_square_and_david_street(
     latin_uv = get_sign_uv(sign_atlas, "latin_rd_plaque")
     build_street_name_plate(collector, (21.96, 19.2, bz_7002 + 2.35), (-1.0, 0.0), latin_uv, width=0.92, height=0.54)
 
-    # --- 1C. Petra Hotel (`7003`, `x = 64.0..86.0, y = 11.5..27.5`) at NE Corner of Omar Square ---
-    bz_7003 = elev_fn(74.0, 11.5)
+    # --- 1C. Petra Hotel (`7003`, `x = 53.5..82.0, y = 11.5..27.5`) at NE Corner of Omar Square ---
+    bz_7003 = elev_fn(66.0, 11.5)
     build_building_from_footprint(
         collector,
-        [(64.0, 11.5), (86.0, 11.5), (86.0, 27.5), (64.0, 27.5)],
+        [(53.5, 11.5), (82.0, 11.5), (82.0, 27.5), (53.5, 27.5)],
         base_z=bz_7003,
         levels=3,
         sign_atlas=sign_atlas,
@@ -1786,35 +1855,46 @@ def build_hero_omar_square_and_david_street(
         all_upper_balconies=True,
         rooftop_balustrade=True,
     )
-    petra_uv = get_sign_uv(sign_atlas, "petra_hotel")
-    build_fascia_sign(collector, (73.5, 11.46, bz_7003 + 3.68), (1.0, 0.0), (0.0, -1.0), width=2.75, height=0.58, sign_uv_rect=petra_uv)
-    build_blade_sign(collector, (63.96, 13.0, bz_7003 + 3.55), (0.0, 1.0), (-1.0, 0.0), width=0.92, height=0.52, sign_uv_rect=petra_uv)
-    build_street_name_plate(collector, (64.0, 11.46, bz_7003 + 2.35), (0.0, -1.0), omar_uv, width=0.92, height=0.54)
-
-    # --- 1D. Christian Information Centre (`7004`, Moved South to `x = 58..82, y = -34.0..-18.5`) ---
-    bz_7004 = elev_fn(68.0, -18.5)
+    # Recessed stone archway / bridge wing between New Imperial Hotel (x=48.5) and Petra Hotel (x=53.5)
     build_building_from_footprint(
         collector,
-        [(58.0, -34.0), (82.0, -34.0), (82.0, -18.5), (58.0, -18.5)],
+        [(48.0, 18.0), (54.0, 18.0), (54.0, 27.0), (48.0, 27.0)],
+        base_z=bz_7002,
+        levels=3,
+        sign_atlas=sign_atlas,
+        building_id=7008,
+        is_hero=True,
+        force_souq_ground=True,
+    )
+    petra_uv = get_sign_uv(sign_atlas, "petra_hotel")
+    build_fascia_sign(collector, (66.5, 11.46, bz_7003 + 3.68), (1.0, 0.0), (0.0, -1.0), width=2.75, height=0.58, sign_uv_rect=petra_uv)
+    build_blade_sign(collector, (53.46, 13.0, bz_7003 + 3.55), (0.0, 1.0), (-1.0, 0.0), width=0.92, height=0.52, sign_uv_rect=petra_uv)
+    build_street_name_plate(collector, (53.5, 11.46, bz_7003 + 2.35), (0.0, -1.0), omar_uv, width=0.92, height=0.54)
+
+    # --- 1D. Christian Information Centre (`7004`, East of Citadel Moat at `x = 62..82, y = -28.0..-14.0`) ---
+    bz_7004 = elev_fn(70.0, -14.0)
+    build_building_from_footprint(
+        collector,
+        [(62.0, -28.0), (82.0, -28.0), (82.0, -14.0), (62.0, -14.0)],
         base_z=bz_7004,
         levels=3,
         sign_atlas=sign_atlas,
         building_id=7004,
         is_hero=True,
-        force_souq_ground=True,
+        force_souq_ground=False,
         has_dome=True,
     )
     ci_uv = get_sign_uv(sign_atlas, "christian_info")
-    build_fascia_sign(collector, (68.0, -18.46, bz_7004 + 3.68), (-1.0, 0.0), (0.0, 1.0), width=2.75, height=0.58, sign_uv_rect=ci_uv)
-    build_blade_sign(collector, (57.96, -19.5, bz_7004 + 3.55), (0.0, -1.0), (-1.0, 0.0), width=0.90, height=0.50, sign_uv_rect=ci_uv)
+    build_fascia_sign(collector, (70.0, -13.96, bz_7004 + 3.68), (-1.0, 0.0), (0.0, 1.0), width=2.75, height=0.58, sign_uv_rect=ci_uv)
+    build_blade_sign(collector, (61.96, -15.0, bz_7004 + 3.55), (0.0, -1.0), (-1.0, 0.0), width=0.90, height=0.50, sign_uv_rect=ci_uv)
 
-    # --- 2. Latin Patriarchate Road (`x = 19..34, y = 25..56`) Overhead Flying-Buttress Arches ---
+    # --- 2. Latin Patriarchate Road (`x = 19..34, y = 25..68`) Overhead Arches & North Closure ---
     build_blade_sign(collector, (19.54, 27.5, elev_fn(19.5, 27.5) + 3.6), (0.0, 1.0), (1.0, 0.0), width=0.90, height=0.50, sign_uv_rect=latin_uv)
     build_street_name_plate(collector, (19.54, 26.2, elev_fn(19.5, 26.2) + 2.35), (1.0, 0.0), latin_uv, width=0.90, height=0.52)
 
     build_building_from_footprint(
         collector,
-        [(8.0, 25.0), (19.5, 25.0), (19.5, 52.0), (8.0, 52.0)],
+        [(8.0, 25.0), (19.5, 25.0), (19.5, 58.0), (8.0, 58.0)],
         base_z=elev_fn(16.0, 36.0),
         levels=3,
         sign_atlas=sign_atlas,
@@ -1825,7 +1905,7 @@ def build_hero_omar_square_and_david_street(
     )
     build_building_from_footprint(
         collector,
-        [(33.5, 28.0), (48.0, 28.0), (48.0, 56.0), (33.5, 56.0)],
+        [(33.5, 28.0), (48.0, 28.0), (48.0, 58.0), (33.5, 58.0)],
         base_z=elev_fn(38.0, 40.0),
         levels=3,
         sign_atlas=sign_atlas,
@@ -1833,6 +1913,19 @@ def build_hero_omar_square_and_david_street(
         is_hero=True,
         force_souq_ground=True,
         forced_sign_key="jerusalem_pottery",
+    )
+    # Northern Christian Quarter Closure Building (`7007`) at north end of Latin Patriarchate Road
+    build_building_from_footprint(
+        collector,
+        [(15.0, 57.5), (39.0, 57.5), (39.0, 70.0), (15.0, 70.0)],
+        base_z=elev_fn(26.5, 58.0),
+        levels=3,
+        sign_atlas=sign_atlas,
+        building_id=7007,
+        is_hero=True,
+        force_souq_ground=True,
+        has_dome=True,
+        forced_sign_key="swedish_study",
     )
 
     for arch_y in (36.0, 48.0):
@@ -1958,8 +2051,8 @@ def build_hero_omar_square_and_david_street(
         forced_sign_key="old_city_bazaar",
     )
 
-    # --- 4. Western Mamilla Horizon Embankment & Terraced Buildings (`x = -132 .. -115, y = -95 .. 95`) ---
-    # Closes the distant western horizon when looking west through the 1898 Breach (`groundHoleFraction = 0.0000`)
+    # --- 4. Western Mamilla & Southern Armenian Quarter Horizon Backdrops ---
+    # Closes all western & southern horizon gaps (`groundHoleFraction = 0.0000` in `tower_of_david`, `jaffa_gate_passage`, `walker_16`)
     collector.add_box("CityWalls", "mat_stone_rubble", (-126.0, 0.0, 1.2), (12.0, 190.0, 14.5))
     for blk_idx, by0 in enumerate((-75.0, -45.0, -18.0, 10.0, 38.0)):
         build_building_from_footprint(
@@ -1971,3 +2064,8 @@ def build_hero_omar_square_and_david_street(
             building_id=7300 + blk_idx,
             is_hero=False,
         )
+
+    # Southern Horizon Curtain Wall & Armenian Quarter Terraced Backdrop (`x = -45..115, y = -135..-78, z = -6.0..15.0m`)
+    collector.add_box("CityWalls", "mat_stone_boss", (35.0, -88.0, 3.8), (160.0, 12.0, 19.6))
+    collector.add_box("CityWalls", "mat_stone_ashlar_aged", (35.0, -118.0, 5.0), (165.0, 28.0, 22.0))
+    collector.add_box("CityWalls", "mat_stone_boss", (-8.0, -64.0, 3.2), (24.0, 36.0, 18.4))

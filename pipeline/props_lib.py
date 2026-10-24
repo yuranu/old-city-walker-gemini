@@ -1571,21 +1571,6 @@ def build_souq_display(
         else:
             collector.add_cylinder("StreetProps", "mat_terracotta", (sx, sy, cz), 0.14, 0.20, 0.34, segments=6, smooth=True)
             collector.add_cylinder("StreetProps", "mat_terracotta", (sx, sy, cz + 0.34), 0.20, 0.11, 0.24, segments=6, smooth=True)
-            rug_mat = "mat_awning_striped" if rng.random() < 0.5 else "mat_awning_red"
-            rx0 = cx + tx * (width * 0.46) + nx * 0.06
-            ry0 = cy + ty * (width * 0.46) + ny * 0.06
-            rx1 = cx + tx * (width * 0.72) + nx * 0.06
-            ry1 = cy + ty * (width * 0.72) + ny * 0.06
-            collector.add_quad(
-                "Buildings_Details",
-                rug_mat,
-                (rx0, ry0, cz + 0.85),
-                (rx1, ry1, cz + 0.85),
-                (rx1, ry1, cz + 2.45),
-                (rx0, ry0, cz + 2.45),
-                uv_scale=0.8,
-                double_sided=True,
-            )
 
     collector.bump_count("souq_displays")
 
