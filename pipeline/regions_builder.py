@@ -1060,3 +1060,336 @@ def build_region_r02_christian_quarter(
         build_street_lamp(collector, lx, ly, street_elevation_z(lx, ly), height=4.3)
 
     return built_count
+
+
+# ==============================================================================
+# 4. REGION 3: CENTRAL SOUQS, TRIPLE SOUQ, NORTHERN CARDO & STREET OF THE CHAIN (`r03_central_souqs`)
+# ==============================================================================
+
+def _build_vaulted_triple_souq_and_chain_street(collector: MeshCollector, sign_atlas: Dict[str, dict]) -> None:
+    """
+    Builds:
+      1. The Crusader Vaulted Triple Souq (`Suq el-Attarin`, `Suq el-Lahamin`, `Suq el-Khawajat`)
+         & Northern Cardo (`x = 296..330, y = -40..165`) with arched stone bazaar stalls,
+         high vaulted stone ceiling bays with daylight skylights, hanging lanterns, and spice displays.
+      2. Lower David Street & Street of the Chain (`Tariq Bab al-Silsila`, `x = 168..602, y = 2..68`)
+         with flying-buttress arches, Mamluk Ablaq Turba mausoleums (striped red/cream masonry & domes),
+         and an Ottoman Sabil fountain.
+    """
+    # 1. Crusader Vaulted Triple Souq (`x_lanes = [302.0, 313.0, 324.0]`, `y = -36..156`)
+    pier_xs = [298.5, 305.5, 309.5, 316.5, 320.5, 327.5]
+    y_Segs = list(range(-36, 157, 12))
+
+    for j in range(len(y_Segs) - 1):
+        y0, y1 = float(y_Segs[j]), float(y_Segs[j + 1])
+        ym = 0.5 * (y0 + y1)
+        # Leave cross-street intersection open where David Street / Street of the Chain crosses (`y in [-2..18]`)
+        if -2.0 <= ym <= 18.0:
+            continue
+        bz = street_elevation_z(313.0, ym)
+
+        # Build the 3 parallel market lane walls & arched shopfronts
+        for lane_idx, lx in enumerate((302.0, 313.0, 324.0)):
+            w_left = lx - 2.8
+            w_right = lx + 2.8
+            # Side walls (2 storeys, 7.8m tall)
+            collector.add_box("Buildings_Walls", "mat_stone_ashlar_aged", (w_left - 1.2, ym, bz + 3.9), (2.4, 11.6, 7.8), uv_scale=0.25)
+            collector.add_box("Buildings_Walls", "mat_stone_ashlar_aged", (w_right + 1.2, ym, bz + 3.9), (2.4, 11.6, 7.8), uv_scale=0.25)
+
+            # Open bazaar shopfront arches on both sides of the souq lane
+            for side_x, nx_dir in ((w_left + 0.04, 1.0), (w_right - 0.04, -1.0)):
+                for bay_off in (-3.0, 3.0):
+                    by = ym + bay_off
+                    add_arched_opening_panel(
+                        collector,
+                        "Buildings_Openings",
+                        "mat_wood_doors",
+                        (side_x, by),
+                        bz,
+                        bz + 3.1,
+                        1.1,
+                        2.6,
+                        0.02,
+                        (0.0, nx_dir),
+                        (nx_dir, 0.0),
+                        uv_rect=WOOD_DOOR_UV["souq_open"],
+                        num_voussoirs=7,
+                        add_wall_spandrel=False,
+                    )
+                    add_arch_voussoirs(
+                        collector,
+                        "Buildings_Details",
+                        "mat_stone_boss",
+                        (side_x, by, bz + 2.0),
+                        (0.0, nx_dir),
+                        (nx_dir, 0.0),
+                        span_w=2.7,
+                        arch_h=1.15,
+                        ring_thickness=0.32,
+                        offset_n0=-0.02,
+                        offset_n1=0.18,
+                        num_voussoirs=7,
+                    )
+
+            # High Crusader vaulted stone roof bay above the souq lane (leaving every 3rd bay open as a skylight shaft!)
+            if (j + lane_idx) % 3 != 1:
+                collector.add_box(
+                    "Buildings_Walls",
+                    "mat_stone_ashlar",
+                    (lx, ym, bz + 8.1),
+                    (6.2, 11.2, 0.65),
+                    uv_scale=0.26,
+                    bottom_face=True,
+                )
+            # Transverse stone vault arch ribs + hanging glowing bazaar lantern
+            collector.add_box(
+                "Buildings_Details",
+                "mat_stone_boss",
+                (lx, ym, bz + 7.4),
+                (5.6, 0.65, 0.85),
+                uv_scale=0.28,
+                bottom_face=True,
+            )
+            collector.add_box(
+                "StreetProps",
+                "mat_lantern_glow",
+                (lx, ym, bz + 6.5),
+                (0.28, 0.28, 0.42),
+                bottom_face=True,
+            )
+
+            # Spice sacks & produce crates along the souq edges
+            if j % 2 == 0:
+                build_souq_display(collector, (w_left + 0.55, ym, bz), (0.0, 1.0), (1.0, 0.0), seed=500 + j * 10 + lane_idx)
+
+    # 2. Street of the Chain (`Tariq Bab al-Silsila`) Arched Portals & Mamluk Ablaq Turbas
+    # Path runs from `(175, 4)` -> `(300, 8)` -> `(440, 36)` -> `(595, 68)`
+    chain_waypoints = [
+        (185.0, 4.0),
+        (215.0, 5.0),
+        (248.0, 6.0),
+        (280.0, 7.5),
+        (345.0, 14.0),
+        (385.0, 22.0),
+        (425.0, 31.0),
+        (465.0, 40.0),
+        (505.0, 49.0),
+        (545.0, 58.0),
+        (585.0, 66.0),
+    ]
+    for idx_c, (cx, cy) in enumerate(chain_waypoints):
+        cz = street_elevation_z(cx, cy)
+        # Grounded stone arch piers on both sides of the 5.8m street corridor (`y = cy - 3.2` and `y = cy + 3.2`)
+        for side_y in (-3.2, 3.2):
+            collector.add_box(
+                "Buildings_Walls",
+                "mat_stone_boss",
+                (cx, cy + side_y, cz + 3.1),
+                (1.35, 1.15, 6.2),
+                uv_scale=0.26,
+            )
+        # Stone arch beam & cornice spanning between the piers
+        collector.add_box(
+            "Buildings_Details",
+            "mat_stone_boss",
+            (cx, cy, cz + 5.8),
+            (1.15, 7.5, 0.95),
+            uv_scale=0.28,
+            bottom_face=True,
+        )
+        collector.add_box(
+            "Buildings_Details",
+            "mat_stone_mizzi",
+            (cx, cy, cz + 6.4),
+            (1.28, 7.6, 0.24),
+            uv_scale=0.32,
+            bottom_face=True,
+        )
+        build_street_lamp(collector, cx + 2.2, cy + 2.5, cz, height=4.2)
+
+    # 3. Mamluk *Turbas* & *Madrasas* on Street of the Chain (`Turbat Baraka Khan` at `(445, 46)`, `Madrasa al-Tashtamuriyya` at `(525, 64)`)
+    for t_idx, (tx, ty) in enumerate(((445.0, 46.0), (525.0, 64.0))):
+        tz = street_elevation_z(tx, ty)
+        # Main masonry block with alternating Mamluk Ablaq red/cream limestone bands (`mat_stone_mizzi` + `mat_terracotta`)
+        collector.add_box("Buildings_Walls", "mat_stone_ashlar", (tx, ty, tz + 5.2), (16.0, 11.0, 10.4), uv_scale=0.24)
+        for band_z in (1.6, 2.8, 4.0, 5.2):
+            collector.add_box(
+                "Buildings_Details",
+                "mat_terracotta" if int(band_z * 2) % 2 == 0 else "mat_stone_mizzi",
+                (tx, ty - 5.56, tz + band_z),
+                (16.1, 0.16, 0.34),
+                uv_scale=0.35,
+            )
+        # Mamluk street facade arched grille windows & portal
+        for wx_off in (-4.8, 0.0, 4.8):
+            add_arched_opening_panel(
+                collector,
+                "Buildings_Openings",
+                "mat_wood_doors",
+                (tx + wx_off, ty - 5.53),
+                tz + (0.0 if wx_off == 0.0 else 0.9),
+                tz + 3.6,
+                1.1,
+                2.2,
+                0.02,
+                (1.0, 0.0),
+                (0.0, -1.0),
+                uv_rect=WOOD_DOOR_UV["door_wood" if wx_off == 0.0 else "window_glass"],
+                num_voussoirs=7,
+                add_wall_spandrel=False,
+            )
+            add_arch_voussoirs(
+                collector,
+                "Buildings_Details",
+                "mat_stone_boss",
+                (tx + wx_off, ty - 5.53, tz + 2.5),
+                (1.0, 0.0),
+                (0.0, -1.0),
+                span_w=2.4,
+                arch_h=1.15,
+                ring_thickness=0.34,
+                offset_n0=-0.02,
+                offset_n1=0.22,
+                num_voussoirs=7,
+            )
+        # Twin Mamluk mausoleum stone domes on drum
+        for off_x in (-3.8, 3.8):
+            collector.add_branch_tube(
+                "Buildings_Walls",
+                "mat_stone_mizzi",
+                (tx + off_x, ty, tz + 10.4),
+                (tx + off_x, ty, tz + 12.6),
+                2.8,
+                2.7,
+                segments=12,
+                cap_end=True,
+            )
+            collector.add_dome(
+                "Buildings_Details",
+                "mat_stone_ashlar",
+                (tx + off_x, ty, tz + 12.5),
+                radius=2.7,
+                height=2.8,
+                rings=6,
+                segments=12,
+            )
+
+    # 4. Ottoman Street Sabil (`Sabil Bab al-Silsila` at `(572.0, 68.0)`)
+    sb_x, sb_y = 572.0, 68.0
+    sb_z = street_elevation_z(sb_x, sb_y)
+    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (sb_x, sb_y, sb_z + 2.6), (4.8, 2.2, 5.2), uv_scale=0.28)
+    add_arch_voussoirs(
+        collector,
+        "Buildings_Details",
+        "mat_stone_boss",
+        (sb_x, sb_y - 1.12, sb_z + 2.4),
+        (1.0, 0.0),
+        (0.0, -1.0),
+        span_w=2.8,
+        arch_h=1.4,
+        ring_thickness=0.36,
+        offset_n0=-0.02,
+        offset_n1=0.25,
+        num_voussoirs=9,
+    )
+
+
+def build_region_r03_central_souqs(
+    collector: MeshCollector,
+    osm_data: dict,
+    sign_atlas: Dict[str, dict],
+) -> int:
+    """
+    Builds Region 3 (`r03_central_souqs`):
+      - Continuous stone-paved ground surface across `[165..605] x [-45..260]` (excluding `r02` NW block)
+      - Crusader Vaulted Triple Souq & Northern Cardo (`x = 296..330, y = -36..156`)
+      - Lower David Street & Street of the Chain (`Tariq Bab al-Silsila`), Mamluk Turbas, Ottoman Sabil
+      - Khan el-Zeit & Central El-Wad / HaGai Valley buildings, trees, and street props
+    """
+    def r03_exclude(x: float, y: float) -> bool:
+        if x < 295.0 and y > 55.0:
+            return True
+        return False
+
+    build_region_ground_grid(collector, 165.0, 605.0, -45.0, 260.0, step=5.5, exclude_fn=r03_exclude)
+    _build_vaulted_triple_souq_and_chain_street(collector, sign_atlas)
+
+    clear_scene_building_rings()
+    osm_buildings = [
+        b for b in osm_data.get("buildings", [])
+        if b.get("region") == "r03_central_souqs"
+    ]
+
+    valid_blds = []
+    for b in osm_buildings:
+        osm_id = int(b.get("osm_id", 0))
+        if osm_id in (5862586, 7880713):
+            continue
+        cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
+        # Keep Triple Souq corridor (`x = 292..334, y = -42..162`) clear
+        if 292.0 <= cx <= 334.0 and -42.0 <= cy <= 162.0:
+            continue
+        # Keep Street of the Chain & Mamluk Turba corridor clear
+        chain_y = 4.0 + max(0.0, (cx - 175.0) / 420.0) * 62.0
+        if abs(cy - chain_y) < 9.5:
+            continue
+        # Keep Khan el-Zeit corridor (`x = 296..314, y = 160..260`) clear
+        if 296.0 <= cx <= 314.0 and 160.0 <= cy <= 260.0:
+            continue
+        ring = b.get("ring", [])
+        if len(ring) < 3:
+            continue
+        rxs = [float(p[0]) for p in ring]
+        rys = [float(p[1]) for p in ring]
+        if (max(rxs) - min(rxs)) > 65.0 or (max(rys) - min(rys)) > 65.0:
+            continue
+        valid_blds.append(b)
+        register_scene_building_ring(osm_id, ring)
+
+    built_count = 0
+    for idx, b in enumerate(valid_blds):
+        ring = b.get("ring", [])
+        cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
+        bz = street_elevation_z(cx, cy)
+        lvls = max(2, min(3, int(b.get("levels", 2))))
+        build_building_from_footprint(
+            collector,
+            ring,
+            base_z=bz,
+            levels=lvls,
+            sign_atlas=sign_atlas,
+            building_id=int(b.get("osm_id", idx)),
+            is_hero=False,
+        )
+        built_count += 1
+
+    # Trees, street lamps, and market clutter along Khan el-Zeit and El-Wad
+    for tx, ty, sp, th, seed in (
+        (338.0, 85.0, "olive", 6.2, 401),
+        (415.0, 95.0, "cypress", 10.5, 402),
+        (485.0, 120.0, "olive", 6.5, 403),
+        (535.0, 88.0, "cypress", 11.0, 404),
+        (365.0, -18.0, "olive", 6.0, 405),
+    ):
+        tz = street_elevation_z(tx, ty)
+        if sp == "cypress":
+            build_cypress_tree(collector, tx, ty, tz, height=th, seed=seed, with_kerb=True)
+        else:
+            build_olive_tree(collector, tx, ty, tz, height=th, seed=seed, with_kerb=True)
+
+    for idx_g, (gx, gy) in enumerate(((297.0, 22.0), (328.0, 64.0), (435.0, 32.0), (515.0, 48.0))):
+        build_garbage_pile(collector, gx, gy, street_elevation_z(gx, gy), rot_z=0.4 * idx_g, bag_count=4, seed=450 + idx_g)
+
+    return built_count
+
+
+def build_additional_region(
+    region_id: str,
+    collector: MeshCollector,
+    osm_data: dict,
+    sign_atlas: Dict[str, dict],
+) -> int:
+    if region_id == "r03_central_souqs":
+        return build_region_r03_central_souqs(collector, osm_data, sign_atlas)
+    raise ValueError(f"Unknown region_id: {region_id}")
+
