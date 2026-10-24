@@ -173,5 +173,57 @@
     "pitch": 10.0,
     "fov": 70.0,
     "radius": 35.0
+  },
+  {
+    "id": "st_james_cathedral",
+    "name": "St. James Cathedral (Surb Hakob) & Armenian Quarter",
+    "shortName": "St. James Cathedral",
+    "subtitle": "12th-century Armenian Apostolic cathedral with conical cupola dome and blue ceramic narthex",
+    "x": 132.5,
+    "y": -252.0,
+    "z_eye": 1.7,
+    "heading": 0.0,
+    "pitch": 14.0,
+    "fov": 70.0,
+    "radius": 35.0
+  },
+  {
+    "id": "zion_gate_portal",
+    "name": "Zion Gate (Bab al-Nabi Dawud) & Southern Ramparts",
+    "shortName": "Zion Gate",
+    "subtitle": "1540 Ottoman gatehouse on Mount Zion along the southern Old City Wall",
+    "x": 188.0,
+    "y": -432.0,
+    "z_eye": 1.7,
+    "heading": 12.0,
+    "pitch": 8.0,
+    "fov": 70.0,
+    "radius": 30.0
+  },
+  {
+    "id": "hurva_synagogue_plaza",
+    "name": "Hurva Synagogue & Hurva Square (Jewish Quarter)",
+    "shortName": "Hurva Synagogue",
+    "subtitle": "Monumental neo-Byzantine synagogue dome, Golden Menorah pavilion, and Hurva Square",
+    "x": 346.7,
+    "y": -105.0,
+    "z_eye": 1.7,
+    "heading": 180.0,
+    "pitch": 16.0,
+    "fov": 70.0,
+    "radius": 35.0
+  },
+  {
+    "id": "southern_roman_cardo",
+    "name": "Southern Roman Cardo Colonnade",
+    "shortName": "Roman Cardo",
+    "subtitle": "Byzantine colonnaded main street of Jerusalem with monolithic limestone columns and capitals",
+    "x": 308.0,
+    "y": -155.0,
+    "z_eye": 1.7,
+    "heading": 0.0,
+    "pitch": 5.0,
+    "fov": 70.0,
+    "radius": 35.0
   }
 ]
