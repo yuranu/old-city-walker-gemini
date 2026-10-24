@@ -1190,20 +1190,20 @@ def _build_lod2_building(
                 cap_ends=False,
             )
 
-        # Ground-floor framed wooden portal & upper-floor stone-framed shuttered windows on walls >= 4.5m
-        if edge_len >= 4.5:
-            n_wins = 2 if edge_len >= 9.2 else 1
+        # Ground-floor framed wooden portal & upper-floor stone-framed shuttered windows on walls >= 3.2m
+        if edge_len >= 3.2:
+            n_wins = 2 if edge_len >= 8.2 else 1
             for w_i in range(n_wins):
                 u_frac = (w_i + 1) / (n_wins + 1)
                 bx = p0[0] + (p1[0] - p0[0]) * u_frac
                 by = p0[1] + (p1[1] - p0[1]) * u_frac
 
                 # Ground-floor framed Jerusalem timber doorway on primary street walls
-                if w_i == 0 and edge_len >= 5.2 and (building_id + i) % 2 == 0:
-                    df_x, df_y = bx + nx * 0.025, by + ny * 0.025
-                    dw_x, dw_y = bx + nx * 0.048, by + ny * 0.048
+                if w_i == 0 and edge_len >= 3.8:
+                    df_x, df_y = bx + nx * 0.035, by + ny * 0.035
+                    dw_x, dw_y = bx + nx * 0.055, by + ny * 0.055
                     d_hw = 0.68
-                    df_hw = d_hw + 0.16
+                    df_hw = d_hw + 0.18
                     collector.add_quad(
                         "Buildings_Details",
                         "mat_stone_boss",
@@ -1225,38 +1225,49 @@ def _build_lod2_building(
                     )
 
                 win_hw = 0.56
-                fw_hw = win_hw + 0.14
-                fx, fy = bx + nx * 0.025, by + ny * 0.025
-                mx, my = bx + nx * 0.048, by + ny * 0.048
-                sx_p, sy_p = bx + nx * 0.062, by + ny * 0.062
+                fw_hw = win_hw + 0.16
+                fx, fy = bx + nx * 0.035, by + ny * 0.035
+                mx, my = bx + nx * 0.055, by + ny * 0.055
+                sx_p, sy_p = bx + nx * 0.068, by + ny * 0.068
                 for lvl in range(1, levels):
                     sill_z = base_z + ground_h + (lvl - 1) * upper_floor_h + 0.75
                     head_z = sill_z + 1.48
-                    # Stone window frame & sill surround
+                    # Stone window frame & 3D projecting stone sill/lintel surround
                     collector.add_quad(
                         "Buildings_Details",
                         "mat_stone_mizzi",
-                        (fx - rx * fw_hw, fy - ry * fw_hw, sill_z - 0.10),
-                        (fx + rx * fw_hw, fy + ry * fw_hw, sill_z - 0.10),
-                        (fx + rx * fw_hw, fy + ry * fw_hw, head_z + 0.16),
-                        (fx - rx * fw_hw, fy - ry * fw_hw, head_z + 0.16),
+                        (fx - rx * fw_hw, fy - ry * fw_hw, sill_z - 0.12),
+                        (fx + rx * fw_hw, fy + ry * fw_hw, sill_z - 0.12),
+                        (fx + rx * fw_hw, fy + ry * fw_hw, head_z + 0.18),
+                        (fx - rx * fw_hw, fy - ry * fw_hw, head_z + 0.18),
                         expected_normal=(nx, ny, 0.0),
+                    )
+                    collector.add_oriented_box(
+                        "Buildings_Details",
+                        "mat_stone_boss",
+                        (bx - rx * (fw_hw + 0.05), by - ry * (fw_hw + 0.05)),
+                        (bx + rx * (fw_hw + 0.05), by + ry * (fw_hw + 0.05)),
+                        sill_z - 0.14,
+                        sill_z + 0.02,
+                        0.0,
+                        0.16,
+                        (nx, ny),
+                        cap_ends=True,
                     )
                     w0 = (mx - rx * win_hw, my - ry * win_hw, sill_z)
                     w1 = (mx + rx * win_hw, my + ry * win_hw, sill_z)
                     w2 = (mx + rx * win_hw, my + ry * win_hw, head_z)
                     w3 = (mx - rx * win_hw, my - ry * win_hw, head_z)
                     collector.add_quad("Buildings_Openings", "mat_wood_doors", w0, w1, w2, w3, uv_rect=WOOD_DOOR_UV["window_glass"], expected_normal=(nx, ny, 0.0))
-                    # Open painted wooden louvred shutters flanking the window
-                    if (building_id + i + lvl + w_i) % 2 == 0 and edge_len >= 5.6:
-                        for sh_sign in (-1.0, 1.0):
-                            sh_c = sh_sign * (win_hw + 0.20)
-                            sh_hw = 0.17
-                            s0 = (sx_p + rx * (sh_c - sh_hw), sy_p + ry * (sh_c - sh_hw), sill_z + 0.02)
-                            s1 = (sx_p + rx * (sh_c + sh_hw), sy_p + ry * (sh_c + sh_hw), sill_z + 0.02)
-                            s2 = (sx_p + rx * (sh_c + sh_hw), sy_p + ry * (sh_c + sh_hw), head_z - 0.02)
-                            s3 = (sx_p + rx * (sh_c - sh_hw), sy_p + ry * (sh_c - sh_hw), head_z - 0.02)
-                            collector.add_quad("Buildings_Openings", "mat_wood_doors", s0, s1, s2, s3, uv_rect=WOOD_DOOR_UV["shutter_louvre"], expected_normal=(nx, ny, 0.0))
+                    # Open painted wooden louvred shutters flanking EVERY upper window (zero plain black squares!)
+                    for sh_sign in (-1.0, 1.0):
+                        sh_c = sh_sign * (win_hw + 0.20)
+                        sh_hw = 0.18
+                        s0 = (sx_p + rx * (sh_c - sh_hw), sy_p + ry * (sh_c - sh_hw), sill_z + 0.02)
+                        s1 = (sx_p + rx * (sh_c + sh_hw), sy_p + ry * (sh_c + sh_hw), sill_z + 0.02)
+                        s2 = (sx_p + rx * (sh_c + sh_hw), sy_p + ry * (sh_c + sh_hw), head_z - 0.02)
+                        s3 = (sx_p + rx * (sh_c - sh_hw), sy_p + ry * (sh_c - sh_hw), head_z - 0.02)
+                        collector.add_quad("Buildings_Openings", "mat_wood_doors", s0, s1, s2, s3, uv_rect=WOOD_DOOR_UV["shutter_louvre"], expected_normal=(nx, ny, 0.0))
 
     roof_pts = [(p[0], p[1], roof_z + 0.55) for p in pts]
     collector.add_polygon_3d("Buildings_Walls", "mat_plaster", roof_pts, uv_scale=0.25)
@@ -1965,12 +1976,16 @@ def build_jaffa_gate_monument(
         for mx in (-8.15, 5.85):
             collector.add_box("JaffaGate_Monument", "mat_stone_ashlar_aged", (mx, my, 16.5), (0.65, 1.35, 1.4))
 
-    # --- C. Interior L-Passage Doors (`z = 0.10 .. 3.26m`, cleanly below `z = 3.55m` vault springline!), Plaques & Lanterns ---
-    collector.add_box("JaffaGate_Monument", "mat_wood_doors", (-5.20, 4.78, 1.68), (1.55, 0.14, 3.16), uv_rect=WOOD_DOOR_UV["door_wood"])
-    collector.add_box("JaffaGate_Monument", "mat_wood_doors", (-5.20, 0.62, 1.68), (1.55, 0.14, 3.16), uv_rect=WOOD_DOOR_UV["door_wood"])
+    # --- C. Interior L-Passage Iron-Plated Doors (`z = 0.10 .. 3.26m`), Foreground Acacia Tree in Round Planter, Plaques & Lanterns ---
+    collector.add_box("JaffaGate_Monument", "mat_iron_dark", (-5.20, 4.78, 1.68), (1.55, 0.14, 3.16))
+    collector.add_box("JaffaGate_Monument", "mat_iron_dark", (-5.20, 0.62, 1.68), (1.55, 0.14, 3.16))
     for strap_z in (0.65, 1.68, 2.70):
-        collector.add_box("JaffaGate_Monument", "mat_iron_dark", (-5.20, 4.69, strap_z), (1.58, 0.03, 0.09))
-        collector.add_box("JaffaGate_Monument", "mat_iron_dark", (-5.20, 0.71, strap_z), (1.58, 0.03, 0.09))
+        collector.add_box("JaffaGate_Monument", "mat_stone_boss", (-5.20, 4.69, strap_z), (1.58, 0.03, 0.09))
+        collector.add_box("JaffaGate_Monument", "mat_stone_boss", (-5.20, 0.71, strap_z), (1.58, 0.03, 0.09))
+    # Cylindrical stone planter + slender branching tree flanking the southern pier of Jaffa Gate (`(-10.2, -3.4)`) clear of the archway & plaque
+    ac_z = -0.05
+    collector.add_branch_tube("StreetProps", "mat_stone_mizzi", (-10.2, -3.4, ac_z), (-10.2, -3.4, ac_z + 0.68), 0.45, 0.43, segments=12, cap_end=True)
+    build_olive_tree(collector, -10.2, -3.4, ac_z + 0.62, height=3.8, seed=108, with_kerb=False)
 
     # Trilingual Karakashian ceramic street name plaques ("JAFFA GATE / BAB EL-KHALIL")
     jg_uv = get_sign_uv(sign_atlas, "jaffa_gate_plaque")
