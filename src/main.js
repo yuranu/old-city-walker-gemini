@@ -987,8 +987,6 @@ async function initApp() {
       }
       updateHUD(true);
       syncSunShadowToCamera(true);
-      // Render 2 frames synchronously with high-quality AO so framebuffers are guaranteed updated
-      renderFrame(true);
       renderFrame(true);
       return {
         ...result,
@@ -1002,6 +1000,9 @@ async function initApp() {
 
     setSkyKey(on) {
       const enabled = Boolean(on);
+      if (enabled === skyKeyActive) {
+        return { skyKey: enabled };
+      }
       skyKeyActive = enabled;
       skyUniforms.uSkyKey.value = enabled ? 1.0 : 0.0;
       skyMat.toneMapped = !enabled;
@@ -1013,7 +1014,6 @@ async function initApp() {
         scene.fog = new THREE.FogExp2(0xe6d7c3, 0.0011);
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
       }
-      renderFrame(true);
       renderFrame(true);
       return { skyKey: enabled };
     },
@@ -1270,8 +1270,7 @@ async function initApp() {
   renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.needsUpdate = true;
 
-  // Render initial frames & mark QA API ready
-  renderFrame(true);
+  // Render initial frame & mark QA API ready
   renderFrame(true);
 
   window.__QA__.places = places;
@@ -1284,7 +1283,8 @@ async function initApp() {
     loadingOverlay.classList.add('done');
   }
 
-  // Main animation loop with Adaptive 60 FPS Governor
+  // Main animation loop with Adaptive 60 FPS Governor (disabled in ?clean=1 headless QA capture mode
+  // so window.__QA__.setPose renders deterministically on demand without background CPU contention)
   let lastTime = performance.now();
   let emaDt = 1 / 60;
 
@@ -1302,7 +1302,9 @@ async function initApp() {
     renderFrame();
   }
 
-  requestAnimationFrame(animate);
+  if (!isCleanMode) {
+    requestAnimationFrame(animate);
+  }
 }
 
 initApp();
