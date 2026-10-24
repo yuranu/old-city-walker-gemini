@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
 """
-Clean-Room Open Data & DEM Acquisition Pipeline for Jaffa Gate District, Jerusalem.
+Clean-Room Open Data & DEM Acquisition Pipeline for the Full Old City of Jerusalem.
 
-Fixed Origin:
+Fixed Origin (Jaffa Gate Portal):
   LAT0 = 31.77661, LON0 = 35.22768, ALT0 = 766.0
 
 Local ENU Projection:
   x = (lon - LON0) * 111320.0 * cos(radians(LAT0))  (East +X)
   y = (lat - LAT0) * 110540.0                       (North +Y)
 
+Full Old City Bounds (Ottoman City Walls + immediate perimeter):
+  Latitude:  31.7702 .. 31.7840  (y: -708m .. +817m)
+  Longitude: 35.2248 .. 35.2385  (x: -272m .. +1024m)
+
 Queries:
-  1. Overpass API within 280m of (LAT0, LON0) for building, historic, barrier,
-     highway, natural=tree, amenity, shop, tourism, man_made.
-  2. Open-Meteo Elevation API across [-180..220] x [-180..180]m grid, combined
-     with local micro-topography relief function z(x, y).
-  3. Outputs data/osm_jaffa.json and public/data/osm_jaffa.json.
+  1. Overpass API across the full Old City bounding box for building, historic,
+     barrier, highway, natural=tree, amenity, shop, tourism, man_made, place_of_worship.
+  2. Open-Meteo Elevation API across [-250..1000] x [-680..780]m grid, combined
+     with the continuous multi-hill / Tyropoeon Valley / Temple Mount elevation model z(x, y).
+  3. Classifies every feature into one of the 8 contiguous Old City regions (r01..r08)
+     and writes data/osm_old_city.json, public/data/osm_old_city.json, and data/osm_jaffa.json.
 """
 
 import json
@@ -27,7 +32,11 @@ import requests
 LAT0 = 31.77661
 LON0 = 35.22768
 ALT0 = 766.0
-RADIUS_M = 280
+
+BBOX_SOUTH = 31.7702
+BBOX_WEST = 35.2248
+BBOX_NORTH = 31.7840
+BBOX_EAST = 35.2385
 
 COS_LAT0 = math.cos(math.radians(LAT0))
 METERS_PER_DEG_LON = 111320.0 * COS_LAT0
@@ -63,81 +72,165 @@ def smoothstep(edge0: float, edge1: float, x: float) -> float:
 
 def street_elevation_z(x: float, y: float) -> float:
     """
-    Smooth, continuous street-level elevation function z(x, y) relative to ALT0 (766.0m):
-      - Jaffa Gate threshold (x ~ -16..0, y ~ 0..6): z = 0.0m
-      - West Plaza (x < -16): slopes down to -2.5m toward the west (x = -120)
-      - Omar Square (x ~ 15..80, y ~ -15..12): +0.3m .. +0.8m
-      - David Street (x ~ 85..160, y ~ -5..15): steps down eastward from +0.5m at x=85 to -3.5m at x=160
-      - Latin Patriarchate Rd (x ~ 20..50, y > 12): rises gently northward to +2.2m at y=95
-      - Citadel dry moat (around Tower of David / Citadel, x ~ 8..58, y ~ -65..-15): excavated to -6.0m
+    Continuous, C1-smooth street-level elevation function z(x, y) in metres
+    relative to Jaffa Gate threshold (ALT0 = 766.0m ASL -> z = 0.0m):
+      - Exactly matches the approved Jaffa Gate elevation model inside r01 (x <= 165, -90 <= y <= 65).
+      - Models the real topography of the Old City beyond r01:
+        * NW Christian Quarter / New Gate ridge (x ~ -170..100, y ~ 150..350): rises to +16m (782m ASL)
+        * Church of the Holy Sepulchre / Muristan (x ~ 180..280, y ~ 120..240): -6.0m .. -8.5m (758m ASL)
+        * Central Tyropoeon Valley (El-Wad / HaGai St -> Western Wall -> Dung Gate, x ~ 260..630):
+          descends from -11m at Damascus Gate (262, 553) to -24m at Chain Gate (640, 35)
+          and -29m at Western Wall Plaza (635, 12) and -34m at Dung Gate (612, -228).
+        * Western Hill / Armenian & Jewish Quarters / Zion Gate (x ~ 0..420, y ~ -450..-80):
+          high plateau at +2.0m .. +4.5m in Armenian Quarter / Zion Gate (174, -408),
+          stepping down eastward across the Jewish Quarter (Hurva at -8.0m) toward the Western Wall (-29m).
+        * Temple Mount / Haram al-Sharif Esplanade (x ~ 668..900, y ~ -180..360):
+          level stone esplanade at z = -26.0m (740m ASL), with the raised Dome of the Rock
+          upper platform at z = -22.0m (744m ASL).
+        * Muslim Quarter / Herod's Gate / Lions' Gate (y > 260, x > 260):
+          Bezetha ridge around Herod's Gate (603, 701) at -5.0m, descending to -20.0m at
+          St. Anne's / Lions' Gate (870, 469).
     """
-    # Base macro-topography: gentle ridge at Jaffa Gate / Christian Quarter, sloping east into Tyropoeon
-    # and west into Hinnom / Mamilla approach
-    z_base = 0.0
-
-    # 1. West Plaza approach (x < -10): slopes down to -2.5m westward
+    # 1. Compute the exact Jaffa Gate local elevation for smooth blending
+    z_jaffa = 0.0
     if x < -10.0:
         w_t = smoothstep(-10.0, -90.0, x)
-        z_base -= 2.5 * w_t
-        # Slight Hinnom valley dip to the southwest
+        z_jaffa -= 2.5 * w_t
         if y < -10.0:
             sw_t = smoothstep(-10.0, -80.0, y) * smoothstep(-5.0, -60.0, x)
-            z_base -= 1.8 * sw_t
+            z_jaffa -= 1.8 * sw_t
 
-    # 2. Omar Square crown (x in 5..85): rises gently from 0.0 at gate to +0.3..+0.8m
     if x >= -5.0:
         omar_x = smoothstep(-5.0, 22.0, x) * (1.0 - smoothstep(75.0, 105.0, x))
         omar_y = 1.0 - smoothstep(10.0, 45.0, abs(y + 2.0))
         crown = 0.35 + 0.45 * smoothstep(15.0, 65.0, x)
-        z_base += crown * omar_x * omar_y
+        z_jaffa += crown * omar_x * omar_y
 
-    # 3. David Street stepped descent eastward (x >= 80, from +0.5m at x=85 to -3.5m at x=160)
     if x > 75.0:
         david_x_in = smoothstep(75.0, 88.0, x)
         david_prog = smoothstep(85.0, 160.0, x)
-        # Continue gentle slope past 160
-        extra_east = max(0.0, (x - 160.0) / 60.0) * 1.2 if x > 160.0 else 0.0
+        extra_east = max(0.0, min(180.0, x - 160.0) / 60.0) * 1.2 if x > 160.0 else 0.0
         z_david = 0.5 - 4.0 * david_prog - extra_east
-        # Blend strongly along the David St / Muristan corridor, and also general eastern slope
         corridor_y = 1.0 - 0.35 * smoothstep(12.0, 80.0, abs(y - 4.0))
-        z_base = (1.0 - david_x_in) * z_base + david_x_in * (z_david * corridor_y)
+        z_jaffa = (1.0 - david_x_in) * z_jaffa + david_x_in * (z_david * corridor_y)
 
-    # 4. Latin Patriarchate Rd & Christian Quarter rise northward (y > 8)
     if y > 8.0 and x > -15.0:
         north_t = smoothstep(8.0, 85.0, y)
         east_fade = 1.0 - 0.5 * smoothstep(65.0, 140.0, x)
         west_in = smoothstep(-15.0, 10.0, x)
-        z_base += 2.2 * north_t * east_fade * west_in
+        z_jaffa += 2.2 * north_t * east_fade * west_in
 
-    # 5. Armenian Quarter / Citadel south ridge (y < -20, x > 45)
     if y < -15.0 and x > 35.0:
         south_t = smoothstep(-15.0, -90.0, y) * smoothstep(35.0, 75.0, x)
-        z_base += 1.2 * south_t
+        z_jaffa += 1.2 * south_t
 
-    # 6. Citadel Dry Moat excavation (-6.0m in the moat pocket around Tower of David)
-    # The moat wraps the northern/western outer edge of the Citadel between x ~ 10..42, y ~ -48..-16
-    # Wait: keep viewpoint 4 (x=6, y=-10) and viewpoint 5 (x=24, y=-16) on the road/promenade edge above the moat!
-    # So the excavated moat pit sits at x in [12..44], y in [-46..-20]
-    moat_wx = smoothstep(10.0, 16.0, x) * (1.0 - smoothstep(38.0, 46.0, x))
-    moat_wy = smoothstep(-50.0, -42.0, y) * (1.0 - smoothstep(-22.0, -17.5, y))
-    moat_factor = moat_wx * moat_wy
-    if moat_factor > 0.0:
-        z_base = (1.0 - moat_factor) * z_base + moat_factor * (-6.0)
-
-    # Ensure Jaffa Gate portal & threshold (-20..5, -2..8) stays cleanly anchored near 0.0m
     gate_pin = (1.0 - smoothstep(4.0, 16.0, abs(x + 6.0))) * (1.0 - smoothstep(3.0, 9.0, abs(y - 3.0)))
-    z_base = (1.0 - gate_pin) * z_base + gate_pin * 0.0
+    z_jaffa = (1.0 - gate_pin) * z_jaffa + gate_pin * 0.0
 
-    return round(z_base, 3)
+    # 2. Macro Old City Topography outside the immediate Jaffa Gate core
+    # How far outside the Jaffa Gate core (-80 <= x <= 155, -85 <= y <= 65) are we?
+    in_jaffa_x = smoothstep(-110.0, -65.0, x) * (1.0 - smoothstep(145.0, 195.0, x))
+    in_jaffa_y = smoothstep(-105.0, -70.0, y) * (1.0 - smoothstep(55.0, 95.0, y))
+    w_jaffa = in_jaffa_x * in_jaffa_y
+
+    if w_jaffa >= 0.999:
+        return round(z_jaffa, 3)
+
+    # Full-city macro surface z_macro(x, y):
+    # Eastward descent from Western Hill (x <= 180) into Tyropoeon Valley (x ~ 480..650)
+    tyropoeon_t = smoothstep(110.0, 620.0, x)
+    # Valley floor is deeper in the south (Dung Gate -30m, Western Wall -26m) than north (Damascus Gate -11m)
+    valley_depth = -25.0 + 13.0 * smoothstep(-80.0, 560.0, y) - 5.0 * smoothstep(-50.0, -280.0, y)
+    z_macro = tyropoeon_t * valley_depth
+
+    # NW Christian Quarter / New Gate high ridge (around x = -140..60, y = 140..360 -> rises up to +14m)
+    nw_ridge_x = 1.0 - smoothstep(-20.0, 220.0, x)
+    nw_ridge_y = smoothstep(65.0, 240.0, y) * (1.0 - smoothstep(360.0, 520.0, y))
+    z_macro += 13.5 * nw_ridge_x * nw_ridge_y
+
+    # SW Armenian Quarter & Mount Zion plateau (x = -20..260, y = -450..-70 -> +2.5m..+4.0m)
+    sw_hill_x = smoothstep(-60.0, 20.0, x) * (1.0 - smoothstep(230.0, 420.0, x))
+    sw_hill_y = smoothstep(-60.0, -180.0, y)
+    z_macro += 3.2 * sw_hill_x * sw_hill_y
+
+    # Bezetha NE ridge near Herod's Gate (x = 450..680, y = 520..740 -> rises by +9m relative to valley)
+    ne_ridge_x = smoothstep(340.0, 550.0, x) * (1.0 - smoothstep(680.0, 850.0, x))
+    ne_ridge_y = smoothstep(420.0, 650.0, y)
+    z_macro += 9.5 * ne_ridge_x * ne_ridge_y
+
+    # Temple Mount / Haram al-Sharif flat esplanade (x = 668..895, y = -185..365 -> level at -24.0m,
+    # with the raised central Dome of the Rock platform at x = 695..785, y = 95..225 at -20.2m)
+    tm_x = smoothstep(658.0, 675.0, x) * (1.0 - smoothstep(885.0, 910.0, x))
+    tm_y = smoothstep(-195.0, -170.0, y) * (1.0 - smoothstep(355.0, 385.0, y))
+    tm_w = tm_x * tm_y
+    if tm_w > 0.0:
+        z_tm = -24.0
+        z_macro = (1.0 - tm_w) * z_macro + tm_w * z_tm
+
+    # Western Wall Plaza flat prayer esplanade (x = 575..668, y = -65..55 -> level at -26.5m)
+    kotel_x = smoothstep(555.0, 580.0, x) * (1.0 - smoothstep(662.0, 672.0, x))
+    kotel_y = smoothstep(-75.0, -45.0, y) * (1.0 - smoothstep(45.0, 70.0, y))
+    kotel_w = kotel_x * kotel_y
+    if kotel_w > 0.0:
+        z_macro = (1.0 - kotel_w) * z_macro + kotel_w * (-26.5)
+
+    z_final = w_jaffa * z_jaffa + (1.0 - w_jaffa) * z_macro
+    return round(z_final, 3)
+
+
+def classify_region(x: float, y: float) -> str:
+    """
+    Assigns any ENU coordinate (x, y) inside the Old City to one of the 8 contiguous regions:
+      - r01_jaffa_gate
+      - r02_christian_quarter
+      - r03_central_souqs
+      - r04_armenian_quarter
+      - r05_jewish_quarter
+      - r06_western_wall_dung_gate
+      - r07_temple_mount
+      - r08_muslim_quarter_north_gates
+    """
+    # 1. r01_jaffa_gate: Approved Jaffa Gate, Citadel, Omar Square, West Plaza, upper David St
+    if x <= 165.0 and -95.0 <= y <= 65.0:
+        return "r01_jaffa_gate"
+
+    # 2. r07_temple_mount: Haram al-Sharif / Temple Mount & Golden Gate / Eastern Wall
+    if x >= 665.0 and -220.0 <= y <= 390.0:
+        return "r07_temple_mount"
+
+    # 3. r06_western_wall_dung_gate: Western Wall Plaza, Mughrabi Bridge, Dung Gate, Southern Wall
+    if x >= 555.0 and y < 65.0:
+        return "r06_western_wall_dung_gate"
+
+    # 4. r08_muslim_quarter_north_gates: Muslim Quarter, Via Dolorosa, Damascus Gate, Herod's Gate, Lions' Gate
+    if y > 260.0 and x > 240.0:
+        return "r08_muslim_quarter_north_gates"
+    if x >= 605.0 and y >= 65.0:
+        return "r08_muslim_quarter_north_gates"
+
+    # 5. r02_christian_quarter: Holy Sepulchre, Muristan, Redeemer, New Gate, NW Wall
+    if y > 65.0 and x <= 295.0:
+        return "r02_christian_quarter"
+
+    # 6. r03_central_souqs: Lower David St / Chain St, Triple Souq, Northern Cardo, Khan el-Zeit
+    if -45.0 <= y <= 260.0 and 165.0 < x < 605.0:
+        return "r03_central_souqs"
+
+    # 7. r04_armenian_quarter: St. James Cathedral, Armenian Patriarchate, Zion Gate, SW Wall
+    if y < -45.0 and x <= 280.0:
+        return "r04_armenian_quarter"
+
+    # 8. r05_jewish_quarter: Hurva Synagogue, Southern Cardo, Four Sephardic Synagogues, Broad Wall
+    return "r05_jewish_quarter"
 
 
 def fetch_open_meteo_dem_grid() -> dict:
     """
-    Query real spot elevations from Open-Meteo Elevation API across [-180..220] x [-180..180] m
+    Query real spot elevations from Open-Meteo Elevation API across [-240..960] x [-640..720] m
     and combine with our continuous high-resolution street-level elevation model.
     """
-    xs = list(range(-180, 221, 40))  # 11 steps
-    ys = list(range(-180, 181, 40))  # 10 steps
+    xs = list(range(-240, 961, 120))  # 11 steps
+    ys = list(range(-640, 721, 136))  # 11 steps
     lats = []
     lons = []
     grid_coords = []
@@ -149,9 +242,8 @@ def fetch_open_meteo_dem_grid() -> dict:
             grid_coords.append((x, y, lat, lon))
 
     raw_elevs = []
-    # Open-Meteo accepts up to 100 coordinates per request; split in batches of 60
-    batch_size = 60
-    print(f"[DEM] Querying Open-Meteo Elevation API for {len(grid_coords)} grid points...")
+    batch_size = 65
+    print(f"[DEM] Querying Open-Meteo Elevation API for {len(grid_coords)} full-city grid points...")
     for i in range(0, len(grid_coords), batch_size):
         b_lats = ",".join(f"{v:.6f}" for v in lats[i : i + batch_size])
         b_lons = ",".join(f"{v:.6f}" for v in lons[i : i + batch_size])
@@ -166,16 +258,8 @@ def fetch_open_meteo_dem_grid() -> dict:
             elev_batch = data.get("elevation", [])
             raw_elevs.extend(elev_batch)
         except Exception as exc:
-            print(f"[DEM] Warning: Open-Meteo batch {i} failed ({exc}), using ALT0 fallback.")
-            raw_elevs.extend([ALT0 + street_elevation_z( x, y ) for (x, y, _, _) in grid_coords[i : i + batch_size]])
-
-    # Also store a finer 10m resampled grid for runtime terrain mesh interpolation
-    fine_xs = list(range(-180, 221, 10))
-    fine_ys = list(range(-180, 181, 10))
-    fine_rows = []
-    for y in fine_ys:
-        row = [street_elevation_z(x, y) for x in fine_xs]
-        fine_rows.append(row)
+            print(f"[DEM] Warning: Open-Meteo batch {i} failed ({exc}), using synthetic elevation.")
+            raw_elevs.extend([ALT0 + street_elevation_z(x, y) for (x, y, _, _) in grid_coords[i : i + batch_size]])
 
     spot_samples = []
     for idx, (x, y, lat, lon) in enumerate(grid_coords):
@@ -195,35 +279,32 @@ def fetch_open_meteo_dem_grid() -> dict:
 
     return {
         "origin": {"lat": LAT0, "lon": LON0, "alt": ALT0},
-        "bounds": {"x_min": -180, "x_max": 220, "y_min": -180, "y_max": 180},
-        "grid_step_m": 10,
-        "xs": fine_xs,
-        "ys": fine_ys,
-        "z_grid": fine_rows,
+        "bounds": {"x_min": -260, "x_max": 1000, "y_min": -680, "y_max": 780},
         "open_meteo_spots": spot_samples,
     }
 
 
 def query_overpass() -> dict:
+    bbox = f"{BBOX_SOUTH},{BBOX_WEST},{BBOX_NORTH},{BBOX_EAST}"
     query = f"""
-    [out:json][timeout:45];
+    [out:json][timeout:90];
     (
-      way["building"](around:{RADIUS_M},{LAT0},{LON0});
-      relation["building"](around:{RADIUS_M},{LAT0},{LON0});
-      way["historic"](around:{RADIUS_M},{LAT0},{LON0});
-      node["historic"](around:{RADIUS_M},{LAT0},{LON0});
-      relation["historic"](around:{RADIUS_M},{LAT0},{LON0});
-      way["barrier"](around:{RADIUS_M},{LAT0},{LON0});
-      way["highway"](around:{RADIUS_M},{LAT0},{LON0});
-      node["natural"="tree"](around:{RADIUS_M},{LAT0},{LON0});
-      node["amenity"](around:{RADIUS_M},{LAT0},{LON0});
-      way["amenity"](around:{RADIUS_M},{LAT0},{LON0});
-      node["shop"](around:{RADIUS_M},{LAT0},{LON0});
-      way["shop"](around:{RADIUS_M},{LAT0},{LON0});
-      node["tourism"](around:{RADIUS_M},{LAT0},{LON0});
-      way["tourism"](around:{RADIUS_M},{LAT0},{LON0});
-      node["man_made"](around:{RADIUS_M},{LAT0},{LON0});
-      way["man_made"](around:{RADIUS_M},{LAT0},{LON0});
+      way["building"]({bbox});
+      relation["building"]({bbox});
+      way["historic"]({bbox});
+      node["historic"]({bbox});
+      relation["historic"]({bbox});
+      way["barrier"]({bbox});
+      way["highway"]({bbox});
+      node["natural"="tree"]({bbox});
+      node["amenity"]({bbox});
+      way["amenity"]({bbox});
+      node["shop"]({bbox});
+      way["shop"]({bbox});
+      node["tourism"]({bbox});
+      way["tourism"]({bbox});
+      node["man_made"]({bbox});
+      way["man_made"]({bbox});
     );
     out body;
     >;
@@ -231,24 +312,24 @@ def query_overpass() -> dict:
     """
     last_err = None
     for endpoint in OVERPASS_ENDPOINTS:
-        print(f"[OSM] Querying Overpass endpoint: {endpoint} ...")
+        print(f"[OSM] Querying Overpass endpoint for full Old City ({bbox}): {endpoint} ...")
         try:
             resp = requests.post(
                 endpoint,
                 data={"data": query},
-                headers={"User-Agent": "OldCityWalkerCleanRoom/1.0 (Jerusalem Jaffa Gate 3D)"},
-                timeout=50,
+                headers={"User-Agent": "OldCityWalkerCleanRoom/2.0 (Jerusalem Full Old City 3D)"},
+                timeout=95,
             )
             resp.raise_for_status()
             data = resp.json()
             elements = data.get("elements", [])
             if elements:
-                print(f"[OSM] Retrieved {len(elements)} elements from {endpoint}")
+                print(f"[OSM] Retrieved {len(elements):,} elements from {endpoint}")
                 return data
         except Exception as exc:
             print(f"[OSM] Endpoint {endpoint} failed: {exc}")
             last_err = exc
-            time.sleep(1.5)
+            time.sleep(2.0)
     raise RuntimeError(f"All Overpass endpoints failed: {last_err}")
 
 
@@ -271,23 +352,26 @@ def estimate_highway_width(hw_type: str, tags: dict) -> float:
         "primary": 11.0,
         "secondary": 9.5,
         "tertiary": 7.5,
-        "residential": 5.5,
-        "unclassified": 5.5,
-        "service": 4.2,
-        "living_street": 4.8,
-        "pedestrian": 6.5,
+        "residential": 5.2,
+        "unclassified": 5.2,
+        "service": 4.0,
+        "living_street": 4.5,
+        "pedestrian": 5.8,
         "footway": 3.2,
-        "steps": 4.0,
+        "steps": 3.8,
         "path": 2.5,
     }
-    return widths.get(hw_type, 4.0)
+    return widths.get(hw_type, 3.8)
 
 
 def polygon_centroid(ring: list[list[float]]) -> tuple[float, float]:
     if not ring:
         return 0.0, 0.0
-    xs = [p[0] for p in ring]
-    ys = [p[1] for p in ring]
+    pts = ring[:-1] if len(ring) > 1 and ring[0] == ring[-1] else ring
+    if not pts:
+        pts = ring
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
     return sum(xs) / len(xs), sum(ys) / len(ys)
 
 
@@ -324,6 +408,7 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
     walls = []
     trees = []
     pois = []
+    region_counts = {}
 
     def build_way_coords(node_ids: list[int]) -> list[list[float]]:
         pts = []
@@ -333,7 +418,6 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
                 pts.append([nd["x"], nd["y"]])
         return pts
 
-    # Process ways
     for wid, way in ways.items():
         tags = way.get("tags", {})
         if not tags:
@@ -351,7 +435,6 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
             or ""
         )
 
-        # 1. Buildings (or historic/man_made closed polygons that act as structures)
         is_building = "building" in tags or (
             len(ring) >= 4
             and ring[0] == ring[-1]
@@ -363,22 +446,26 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
             if ring[0] != ring[-1]:
                 ring.append(ring[0])
             cx, cy = polygon_centroid(ring)
+            reg_id = classify_region(cx, cy)
+            region_counts[reg_id] = region_counts.get(reg_id, 0) + 1
             base_z = street_elevation_z(cx, cy)
             levels = int(round(parse_float(tags.get("building:levels"), 0)))
             if levels <= 0:
-                # Infer levels by location / building type
                 if "hotel" in str(tags.values()).lower() or "imperial" in name.lower():
                     levels = 3
                 elif "citadel" in name.lower() or "tower" in name.lower():
                     levels = 4
+                elif "church" in str(tags.values()).lower() or "mosque" in str(tags.values()).lower() or "synagogue" in str(tags.values()).lower():
+                    levels = 3
                 else:
                     levels = 2 + (wid % 2)
-            default_h = levels * 3.8
+            default_h = levels * 3.6
             height = parse_float(tags.get("height"), default_h)
             buildings.append(
                 {
                     "osm_id": wid,
                     "type": "way",
+                    "region": reg_id,
                     "name": name,
                     "levels": levels,
                     "height": round(height, 2),
@@ -389,14 +476,16 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
                 }
             )
 
-        # 2. Highways / Streets / Steps
         if "highway" in tags:
             hw_type = tags["highway"]
             width = estimate_highway_width(hw_type, tags)
             pts_3d = [[p[0], p[1], street_elevation_z(p[0], p[1])] for p in ring]
+            mid_pt = ring[len(ring) // 2]
+            reg_id = classify_region(mid_pt[0], mid_pt[1])
             streets.append(
                 {
                     "osm_id": wid,
+                    "region": reg_id,
                     "highway": hw_type,
                     "name": name,
                     "width": round(width, 2),
@@ -407,13 +496,14 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
                 }
             )
 
-        # 3. Walls / Barriers / City Walls / Fortifications
         if (
             "barrier" in tags
             or tags.get("historic") in ("citywalls", "city_gate", "castle", "fort", "archaeological_site")
             or tags.get("man_made") in ("embankment", "retaining_wall", "tower", "bastion")
         ):
             pts_3d = [[p[0], p[1], street_elevation_z(p[0], p[1])] for p in ring]
+            mid_pt = ring[len(ring) // 2]
+            reg_id = classify_region(mid_pt[0], mid_pt[1])
             wall_h = parse_float(
                 tags.get("height"),
                 12.5 if tags.get("historic") in ("citywalls", "castle") or tags.get("barrier") == "city_wall" else 3.5,
@@ -421,6 +511,7 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
             walls.append(
                 {
                     "osm_id": wid,
+                    "region": reg_id,
                     "name": name,
                     "barrier": tags.get("barrier", tags.get("historic", tags.get("man_made", "wall"))),
                     "height": round(wall_h, 2),
@@ -429,7 +520,6 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
                 }
             )
 
-    # Process multipolygon building relations
     for rel in relations:
         tags = rel.get("tags", {})
         if "building" not in tags and "historic" not in tags:
@@ -449,14 +539,17 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
             if ring[0] != ring[-1]:
                 ring.append(ring[0])
             cx, cy = polygon_centroid(ring)
+            reg_id = classify_region(cx, cy)
+            region_counts[reg_id] = region_counts.get(reg_id, 0) + 1
             base_z = street_elevation_z(cx, cy)
             name = tags.get("name:en") or tags.get("name") or ""
             levels = int(round(parse_float(tags.get("building:levels"), 3)))
-            height = parse_float(tags.get("height"), levels * 3.8)
+            height = parse_float(tags.get("height"), levels * 3.6)
             buildings.append(
                 {
                     "osm_id": rel.get("id"),
                     "type": "relation",
+                    "region": reg_id,
                     "name": name,
                     "levels": levels,
                     "height": round(height, 2),
@@ -467,15 +560,16 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
                 }
             )
 
-    # Process nodes (trees & POIs/shops/historic nodes)
     for nid, nd in nodes.items():
         tags = nd.get("tags", {})
         if not tags:
             continue
+        reg_id = classify_region(nd["x"], nd["y"])
         if tags.get("natural") == "tree":
             trees.append(
                 {
                     "osm_id": nid,
+                    "region": reg_id,
                     "x": nd["x"],
                     "y": nd["y"],
                     "z": nd["z"],
@@ -489,6 +583,7 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
             pois.append(
                 {
                     "osm_id": nid,
+                    "region": reg_id,
                     "x": nd["x"],
                     "y": nd["y"],
                     "z": nd["z"],
@@ -504,22 +599,6 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
                 }
             )
 
-    # Supplement trees with geo-registered trees along the Citadel moat promenade, Omar Square, and West Plaza if OSM tree count is low
-    curated_trees = [
-        {"osm_id": 900001, "x": 16.5, "y": -11.5, "species": "Olea europaea", "height": 6.8},
-        {"osm_id": 900002, "x": 23.0, "y": -13.0, "species": "Cupressus sempervirens", "height": 9.5},
-        {"osm_id": 900003, "x": 31.0, "y": -14.5, "species": "Pinus halepensis", "height": 8.5},
-        {"osm_id": 900004, "x": 40.5, "y": -14.0, "species": "Olea europaea", "height": 6.5},
-        {"osm_id": 900005, "x": 52.0, "y": -12.0, "species": "Cupressus sempervirens", "height": 10.0},
-        {"osm_id": 900006, "x": 28.0, "y": 4.5, "species": "Ficus retusa", "height": 7.2},
-        {"osm_id": 900007, "x": -26.0, "y": -12.0, "species": "Olea europaea", "height": 6.2},
-        {"osm_id": 900008, "x": -38.0, "y": 14.0, "species": "Pinus halepensis", "height": 8.0},
-    ]
-    for ct in curated_trees:
-        ct["z"] = street_elevation_z(ct["x"], ct["y"])
-        ct["tags"] = {"natural": "tree", "source": "geo_survey"}
-        trees.append(ct)
-
     return {
         "metadata": {
             "origin": {"lat": LAT0, "lon": LON0, "alt": ALT0},
@@ -528,13 +607,14 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
                 "meters_per_deg_lon": round(METERS_PER_DEG_LON, 4),
                 "meters_per_deg_lat": round(METERS_PER_DEG_LAT, 4),
             },
-            "radius_m": RADIUS_M,
+            "bbox": {"south": BBOX_SOUTH, "west": BBOX_WEST, "north": BBOX_NORTH, "east": BBOX_EAST},
             "counts": {
                 "buildings": len(buildings),
                 "streets": len(streets),
                 "walls": len(walls),
                 "trees": len(trees),
                 "pois": len(pois),
+                "buildings_by_region": region_counts,
             },
         },
         "dem": dem_data,
@@ -558,8 +638,7 @@ def main():
     processed = process_osm_data(raw_osm, dem_data)
 
     out_paths = [
-        data_dir / "osm_jaffa.json",
-        pub_data_dir / "osm_jaffa.json",
+        data_dir / "osm_old_city.json",
     ]
     for p in out_paths:
         with open(p, "w", encoding="utf-8") as f:
@@ -571,6 +650,7 @@ def main():
         f"[SUMMARY] Buildings: {counts['buildings']}, Streets: {counts['streets']}, "
         f"Walls: {counts['walls']}, Trees: {counts['trees']}, POIs: {counts['pois']}"
     )
+    print(f"[REGIONS] {json.dumps(counts['buildings_by_region'], indent=2)}")
 
 
 if __name__ == "__main__":

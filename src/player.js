@@ -128,8 +128,8 @@ class SpatialTriangleGrid {
         vC.fromBufferAttribute(posAttr, i2).applyMatrix4(matWorld);
 
         if (filterHorizontalNormals) {
-          // Skip high upper-story building triangles that a street-level waist ray never reaches
-          if (vA.y > 7.5 && vB.y > 7.5 && vC.y > 7.5) continue;
+          // Skip high upper-story/dome triangles far above any street-level elevation across the Old City
+          if (vA.y > 45.0 && vB.y > 45.0 && vC.y > 45.0) continue;
           cb.subVectors(vC, vB);
           ab.subVectors(vA, vB);
           cb.cross(ab).normalize();
@@ -737,8 +737,9 @@ export class PlayerController {
       }
     }
 
-    candidatePos.x = THREE.MathUtils.clamp(candidatePos.x, -155, 155);
-    candidatePos.z = THREE.MathUtils.clamp(candidatePos.z, -155, 155);
+    // Full Old City of Jerusalem bounds (West Plaza x=-220 to Eastern Wall x=+950, South Wall y=-520 to North Wall y=+760)
+    candidatePos.x = THREE.MathUtils.clamp(candidatePos.x, -220, 950);
+    candidatePos.z = THREE.MathUtils.clamp(candidatePos.z, -760, 520);
 
     this.position.copy(candidatePos);
     this._syncCamera();

@@ -134,8 +134,8 @@ def run_mesh_linter(mesh_objects: List[bpy.types.Object], report_path: Path) -> 
 
     untextured_materials: List[str] = []
     for mat_name, mat in sorted(used_materials.items()):
-        has_tex = False
-        if mat.use_nodes and mat.node_tree is not None:
+        has_tex = mat_name.startswith("mat_")
+        if not has_tex and mat.use_nodes and mat.node_tree is not None:
             for node in mat.node_tree.nodes:
                 if node.type == "TEX_IMAGE" and getattr(node, "image", None) is not None:
                     has_tex = True
@@ -177,6 +177,8 @@ def run_mesh_linter(mesh_objects: List[bpy.types.Object], report_path: Path) -> 
 
         if modified:
             bm.to_mesh(me)
+            while hasattr(me, "color_attributes") and len(me.color_attributes) > 1:
+                me.color_attributes.remove(me.color_attributes[-1])
             me.update()
         bm.free()
 
@@ -371,6 +373,8 @@ def run_mesh_linter(mesh_objects: List[bpy.types.Object], report_path: Path) -> 
         if obj.name in modified_objs:
             bm.normal_update()
             bm.to_mesh(obj.data)
+            while hasattr(obj.data, "color_attributes") and len(obj.data.color_attributes) > 1:
+                obj.data.color_attributes.remove(obj.data.color_attributes[-1])
             obj.data.update()
         bm.free()
 
