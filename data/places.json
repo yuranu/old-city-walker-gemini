@@ -147,5 +147,31 @@
     "pitch": 6.0,
     "fov": 70.0,
     "radius": 30.0
+  },
+  {
+    "id": "triple_souq_cardo",
+    "name": "Crusader Vaulted Triple Souq (Suq el-Attarin & Northern Cardo)",
+    "shortName": "Triple Souq",
+    "subtitle": "Three parallel 12th-century vaulted market galleries with skylight shafts and spice stalls",
+    "x": 313.0,
+    "y": 36.0,
+    "z_eye": 1.7,
+    "heading": 0.0,
+    "pitch": 4.0,
+    "fov": 70.0,
+    "radius": 35.0
+  },
+  {
+    "id": "chain_street_turba",
+    "name": "Street of the Chain (Tariq Bab al-Silsila) & Mamluk Turbas",
+    "shortName": "Chain Street",
+    "subtitle": "Historic Mamluk thoroughfare with striped Ablaq mausoleum domes and arched portals",
+    "x": 438.0,
+    "y": 35.0,
+    "z_eye": 1.7,
+    "heading": 32.0,
+    "pitch": 10.0,
+    "fov": 70.0,
+    "radius": 35.0
   }
 ]
