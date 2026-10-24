@@ -443,8 +443,8 @@ def populate_street_props_and_trees(
         (51.5, -12.5, "olive", 6.9, 5),
         (29.0, 5.2, "olive", 7.4, 6),
         (55.5, 4.8, "olive", 6.6, 7),
-        (-22.0, -9.5, "olive", 6.5, 8),
-        (-28.5, 11.5, "cypress", 9.0, 9),
+        (-24.0, 10.5, "olive", 6.6, 8),
+        (-22.0, -4.5, "olive", 6.5, 9),
         (-36.0, -14.0, "olive", 6.8, 10),
         (21.2, 33.0, "cypress", 8.5, 11),
     ]
@@ -462,9 +462,11 @@ def populate_street_props_and_trees(
         tx, ty = float(t["x"]), float(t["y"])
         if corridor_distance(tx, ty) > 55.0:
             continue
-        if -15.0 <= tx <= 14.0 and -16.0 <= ty <= 12.0:
+        # Keep Jaffa Gate West Plaza portal sightline 100% unobstructed (`west_plaza` & `walker_11`)
+        if -45.0 <= tx <= 14.0 and -16.0 <= ty <= 12.0:
             continue
-        if 8.0 <= tx <= 64.0 and -85.0 <= ty <= -14.0:
+        # Keep Citadel moat & walls unobstructed
+        if 4.0 <= tx <= 64.0 and -85.0 <= ty <= -10.0:
             continue
         if 72.0 <= tx <= 168.0 and -12.0 <= ty <= 16.0:
             continue
@@ -477,7 +479,7 @@ def populate_street_props_and_trees(
         else:
             build_olive_tree(collector, tx, ty, tz, height=6.5, seed=200 + idx, with_kerb=True)
         placed_xy.append((tx, ty))
-        if len(placed_xy) >= 28:
+        if len(placed_xy) >= 26:
             break
 
     # 2. Limestone & Cast-Iron Bollards
@@ -503,13 +505,13 @@ def populate_street_props_and_trees(
         bz = street_elevation_z(bx, by)
         build_bollard(collector, bx, by, bz, style=b_style)
 
-    # 3. Ornate Jerusalem Street Lamps
+    # 3. Ornate Jerusalem Street Lamps (moved `(9.2, -13.8)` to `(2.5, -13.5)` so `tower_of_david` is unobstructed)
     lamp_coords = [
         (-24.0, 7.2),
         (-14.5, 7.2),
         (-14.5, -6.5),
         (5.5, 7.8),
-        (9.2, -13.8),
+        (2.5, -13.5),
         (20.0, -13.8),
         (34.0, -13.8),
         (48.0, -13.8),
@@ -617,13 +619,13 @@ def should_skip_osm_building(b: dict) -> bool:
     if -18.0 <= cx <= 16.0 and -18.0 <= cy <= 14.0:
         return True
     # 2. Citadel, Widened Dry Moat & Moved Christian Information Centre zone
-    if 6.0 <= cx <= 84.0 and -88.0 <= cy <= -10.0:
+    if 6.0 <= cx <= 86.0 and -95.0 <= cy <= -10.0:
         return True
     # 3. Omar Square open plaza & Hero Hotel footprints
-    if 4.0 <= cx <= 88.0 and -22.0 <= cy <= 29.0:
+    if 4.0 <= cx <= 88.0 and -42.0 <= cy <= 29.0:
         return True
-    # 4. Latin Patriarchate Rd lower hero corridor
-    if 7.0 <= cx <= 49.0 and 24.0 <= cy <= 57.0:
+    # 4. Latin Patriarchate Rd lower & north closure hero corridor
+    if 7.0 <= cx <= 49.0 and 24.0 <= cy <= 72.0:
         return True
     # 5. David Street stepped souq corridor (`x = 76..170, y = -13..17`)
     if 76.0 <= cx <= 170.0 and -13.0 <= cy <= 17.0:
@@ -631,11 +633,11 @@ def should_skip_osm_building(b: dict) -> bool:
 
     for pt in b.get("ring", []):
         px, py = float(pt[0]), float(pt[1])
-        if -12.0 <= px <= 78.0 and -15.5 <= py <= 13.5:
+        if -12.0 <= px <= 78.0 and -42.0 <= py <= 13.5:
             return True
         if 76.0 <= px <= 166.0 and -4.5 <= py <= 8.5:
             return True
-        if 20.0 <= px <= 33.0 and 12.0 <= py <= 65.0:
+        if 14.0 <= px <= 40.0 and 12.0 <= py <= 72.0:
             return True
 
     return False

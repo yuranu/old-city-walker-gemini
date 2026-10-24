@@ -69,20 +69,20 @@ const EXTRA_WALKER_VIEWPOINTS = [
   {
     id: 'walker_15_armenian_road_south',
     name: 'Armenian Patriarchate Road Along Citadel East Glacis',
-    x: 55.0,
-    y: -26.0,
+    x: 59.5,
+    y: -32.0,
     z_eye: 1.7,
-    heading: 195.0,
+    heading: 185.0,
     pitch: 4.0,
     fov: 70.0
   },
   {
     id: 'walker_16_armenian_road_north_lookback',
     name: 'Armenian Patriarchate Road Looking North to Omar Square',
-    x: 55.0,
-    y: -44.0,
+    x: 59.5,
+    y: -48.0,
     z_eye: 1.7,
-    heading: 350.0,
+    heading: 355.0,
     pitch: 5.0,
     fov: 70.0
   },
