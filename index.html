@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Old City Walker — Jaffa Gate (Bab al-Khalil), Jerusalem</title>
+  <style>
+    :root {
+      --glass-bg: rgba(16, 18, 24, 0.76);
+      --glass-border: rgba(255, 238, 205, 0.22);
+      --gold-accent: #f3c878;
+      --gold-bright: #ffe2a6;
+      --text-main: #f7f3eb;
+      --text-dim: #b9b2a3;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0e131a;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+    }
+
+    #game-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      cursor: crosshair;
+    }
+
+    body.clean-mode #hud-root,
+    body.clean-mode #loading-overlay {
+      display: none !important;
+    }
+
+    #hud-root {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* Center Crosshair */
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 14px;
+      height: 14px;
+      transform: translate(-50%, -50%);
+      opacity: 0.65;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.15s ease;
+    }
+    #crosshair::before,
+    #crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255, 245, 224, 0.9);
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.75);
+    }
+    #crosshair::before {
+      top: 6px;
+      left: 0;
+      width: 14px;
+      height: 2px;
+    }
+    #crosshair::after {
+      top: 0;
+      left: 6px;
+      width: 2px;
+      height: 14px;
+    }
+
+    /* Top-left Place & Telemetry Card */
+    #place-card {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      max-width: 390px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      pointer-events: auto;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    }
+
+    .card-eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gold-accent);
+      margin-bottom: 4px;
+    }
+
+    #hud-mode-badge {
+      background: rgba(243, 200, 120, 0.18);
+      border: 1px solid rgba(243, 200, 120, 0.42);
+      color: var(--gold-bright);
+      padding: 1px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+    }
+
+    #hud-place-name {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.25;
+      color: #ffffff;
+      margin-bottom: 3px;
+    }
+
+    #hud-place-sub {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      line-height: 1.35;
+      margin-bottom: 8px;
+    }
+
+    #hud-coords {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #d6cebe;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .hud-actions-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .hud-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 238, 205, 0.22);
+      color: var(--text-main);
+      font-size: 11.5px;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .hud-btn:hover {
+      background: rgba(243, 200, 120, 0.22);
+      border-color: var(--gold-accent);
+    }
+
+    .hud-btn.active {
+      background: rgba(243, 200, 120, 0.28);
+      border-color: var(--gold-bright);
+      color: var(--gold-bright);
+    }
+
+    /* Pointer Lock Prompt Pill */
+    #pointer-prompt {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(14, 16, 22, 0.82);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(243, 200, 120, 0.38);
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-size: 12.5px;
+      color: var(--text-main);
+      pointer-events: auto;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      white-space: nowrap;
+    }
+
+    #pointer-prompt.locked {
+      opacity: 0.35;
+      transform: translateX(-50%) scale(0.95);
+      pointer-events: none;
+    }
+
+    #pointer-prompt .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--gold-accent);
+      box-shadow: 0 0 8px var(--gold-accent);
+    }
+
+    /* Top-right Minimap Panel */
+    #minimap-panel {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 248px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 8px;
+      pointer-events: auto;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    #minimap-panel.hidden {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.96);
+      pointer-events: none;
+    }
+
+    .minimap-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--gold-accent);
+      padding: 0 4px 6px 4px;
+      letter-spacing: 0.04em;
+    }
+
+    #minimap-canvas {
+      width: 230px;
+      height: 230px;
+      display: block;
+      border-radius: 8px;
+      background: #141820;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+    }
+
+    /* Reference Photo Comparison Drawer */
+    #photo-drawer {
+      position: absolute;
+      top: 298px;
+      right: 16px;
+      width: 360px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 10px;
+      pointer-events: auto;
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    #photo-drawer.hidden {
+      opacity: 0;
+      transform: translateX(18px);
+      pointer-events: none;
+    }
+
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--gold-accent);
+    }
+
+    #ref-photo-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      background: #0d1016;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      margin-bottom: 8px;
+    }
+
+    #ref-photo-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    #ref-photo-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+
+    #ref-photo-notes {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      line-height: 1.35;
+      margin-bottom: 8px;
+    }
+
+    /* Bottom Teleport Bar */
+    #teleport-bar {
+      position: absolute;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      max-width: 96vw;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 7px 10px;
+      pointer-events: auto;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+    }
+
+    .tp-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 238, 205, 0.18);
+      color: var(--text-main);
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .tp-btn:hover {
+      background: rgba(243, 200, 120, 0.2);
+      border-color: var(--gold-accent);
+      transform: translateY(-1px);
+    }
+
+    .tp-btn.active {
+      background: rgba(243, 200, 120, 0.28);
+      border-color: var(--gold-bright);
+      color: var(--gold-bright);
+    }
+
+    .tp-key {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.45);
+      color: var(--gold-accent);
+      padding: 1px 5px;
+      border-radius: 4px;
+      border: 1px solid rgba(243, 200, 120, 0.3);
+    }
+
+    /* Loading Overlay */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, #1b222c 0%, #0d1016 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.35s ease;
+    }
+
+    #loading-overlay.done {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--gold-bright);
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+    }
+
+    .loader-sub {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 18px;
+    }
+
+    .loader-bar-bg {
+      width: 260px;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    #loader-bar-fill {
+      width: 15%;
+      height: 100%;
+      background: linear-gradient(90deg, #d89b3c, #ffe2a6);
+      transition: width 0.2s ease;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+
+  <div id="hud-root">
+    <div id="crosshair"></div>
+
+    <div id="pointer-prompt" title="Click to lock mouse for effortless FPS look">
+      <span class="dot"></span>
+      <span id="pointer-prompt-text">Click anywhere for Mouse Look · WASD Move · Shift Sprint · Space Jump · F Fly · 1–0 Teleport</span>
+    </div>
+
+    <div id="place-card">
+      <div class="card-eyebrow">
+        <span>Jaffa Gate · Bab al-Khalil</span>
+        <span id="hud-mode-badge">WALK</span>
+      </div>
+      <div id="hud-place-name">Jaffa Gate Plaza</div>
+      <div id="hud-place-sub">Historic Western Entrance to the Old City of Jerusalem</div>
+      <div id="hud-coords">
+        <span id="hud-pos">E +0.0m, N +0.0m, Z +0.0m</span>
+        <span id="hud-hdg">HDG 090° E</span>
+        <span id="hud-dist">0.0m</span>
+      </div>
+      <div class="hud-actions-row">
+        <button id="btn-photo-toggle" class="hud-btn" type="button">Photo [P]</button>
+        <button id="btn-map-toggle" class="hud-btn active" type="button">Map [M]</button>
+        <button id="btn-ao-toggle" class="hud-btn active" type="button">SSAO [O]</button>
+        <button id="btn-fly-toggle" class="hud-btn" type="button">Fly [F]</button>
+      </div>
+    </div>
+
+    <div id="minimap-panel">
+      <div class="minimap-header">
+        <span>DISTRICT MAP</span>
+        <span>[M] Toggle · Click to Teleport</span>
+      </div>
+      <canvas id="minimap-canvas" width="230" height="230"></canvas>
+    </div>
+
+    <div id="photo-drawer" class="hidden">
+      <div class="drawer-header">
+        <span>REALITY vs. 3D MODEL</span>
+        <span style="cursor:pointer" id="btn-photo-close">[P] Close</span>
+      </div>
+      <div id="ref-photo-wrap">
+        <img id="ref-photo-img" src="/references/west_plaza.jpg" alt="Reference Photograph" />
+      </div>
+      <div id="ref-photo-title">Jaffa Gate West Approach Plaza</div>
+      <div id="ref-photo-notes">Compare real architectural proportions, stone courses, and street furniture against the live 3D view.</div>
+      <button id="btn-snap-photo" class="hud-btn" type="button" style="width:100%">Snap Camera to Photo Viewpoint</button>
+    </div>
+
+    <div id="teleport-bar"></div>
+  </div>
+
+  <div id="loading-overlay">
+    <div class="loader-title">JERUSALEM · JAFFA GATE</div>
+    <div class="loader-sub" id="loader-status">Loading 3D Old City architecture &amp; PBR materials…</div>
+    <div class="loader-bar-bg">
+      <div id="loader-bar-fill"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
