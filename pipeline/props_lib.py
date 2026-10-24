@@ -56,6 +56,43 @@ class MeshCollector:
             return bm, uv_layer
         return bm, self._uv_layers[key]
 
+    @staticmethod
+    def project_face_tangent_uvs(
+        face: bmesh.types.BMFace,
+        uv_layer: bmesh.types.BMLayerItem,
+        uv_scale: float = 0.28,
+    ) -> None:
+        """
+        Projects a face's vertices onto a true orthonormal 2D tangent basis (T, B) lying in
+        the exact plane of the face so UVs are 100% isotropic (aspect stretch == 1.0) on
+        every horizontal, vertical, or sloped face.
+        """
+        face.normal_update()
+        nx, ny, nz = face.normal.x, face.normal.y, face.normal.z
+        if abs(nz) > 0.85:
+            tx, ty, tz = 1.0, 0.0, 0.0
+            bx, by, bz = 0.0, 1.0, 0.0
+        else:
+            horiz_len = math.hypot(nx, ny)
+            if horiz_len > 1e-6:
+                tx, ty, tz = -ny / horiz_len, nx / horiz_len, 0.0
+            else:
+                tx, ty, tz = 1.0, 0.0, 0.0
+            bx = ny * tz - nz * ty
+            by = nz * tx - nx * tz
+            bz = nx * ty - ny * tx
+            b_len = math.sqrt(bx * bx + by * by + bz * bz)
+            if b_len > 1e-6:
+                bx, by, bz = bx / b_len, by / b_len, bz / b_len
+            else:
+                bx, by, bz = 0.0, 0.0, 1.0
+
+        for loop in face.loops:
+            co = loop.vert.co
+            u_val = (co.x * tx + co.y * ty + co.z * tz) * uv_scale
+            v_val = (co.x * bx + co.y * by + co.z * bz) * uv_scale
+            loop[uv_layer].uv = (u_val, v_val)
+
     def add_quad(
         self,
         group: str,
@@ -107,20 +144,7 @@ class MeshCollector:
             for loop, uv in zip(face.loops, uvs):
                 loop[uv_layer].uv = uv
         else:
-            e_horiz = p1 - p0
-            horiz_len = e_horiz.length
-            t_dir = e_horiz.normalized() if horiz_len > 1e-6 else Vector((1.0, 0.0, 0.0))
-            n_vec = face.normal
-            if abs(n_vec.z) > 0.85:
-                for loop in face.loops:
-                    co = loop.vert.co
-                    loop[uv_layer].uv = (co.x * uv_scale, co.y * uv_scale)
-            else:
-                for loop in face.loops:
-                    co = loop.vert.co
-                    u_val = (co.x * t_dir.x + co.y * t_dir.y) * uv_scale
-                    v_val = co.z * uv_scale
-                    loop[uv_layer].uv = (u_val, v_val)
+            self.project_face_tangent_uvs(face, uv_layer, uv_scale)
 
         if double_sided:
             verts_back = [
@@ -138,9 +162,7 @@ class MeshCollector:
                     for loop, uv in zip(f_back.loops, uvs_b):
                         loop[uv_layer].uv = uv
                 else:
-                    for loop in f_back.loops:
-                        co = loop.vert.co
-                        loop[uv_layer].uv = (co.x * uv_scale, co.z * uv_scale)
+                    self.project_face_tangent_uvs(f_back, uv_layer, uv_scale)
             except ValueError:
                 pass
 
@@ -170,17 +192,7 @@ class MeshCollector:
             for loop, uv in zip(face.loops, uvs):
                 loop[uv_layer].uv = uv
         else:
-            n_vec = face.normal
-            if abs(n_vec.z) > 0.75:
-                for loop in face.loops:
-                    co = loop.vert.co
-                    loop[uv_layer].uv = (co.x * uv_scale, co.y * uv_scale)
-            else:
-                e_h = Vector((p1.x - p0.x, p1.y - p0.y, 0.0))
-                t_dir = e_h.normalized() if e_h.length > 1e-5 else Vector((1.0, 0.0, 0.0))
-                for loop in face.loops:
-                    co = loop.vert.co
-                    loop[uv_layer].uv = ((co.x * t_dir.x + co.y * t_dir.y) * uv_scale, co.z * uv_scale)
+            self.project_face_tangent_uvs(face, uv_layer, uv_scale)
 
         if double_sided:
             verts_b = [bm.verts.new(p2), bm.verts.new(p1), bm.verts.new(p0)]
@@ -191,9 +203,7 @@ class MeshCollector:
                     for loop, uv in zip(fb.loops, reversed(uvs)):
                         loop[uv_layer].uv = uv
                 else:
-                    for loop in fb.loops:
-                        co = loop.vert.co
-                        loop[uv_layer].uv = (co.x * uv_scale, co.y * uv_scale)
+                    self.project_face_tangent_uvs(fb, uv_layer, uv_scale)
             except ValueError:
                 pass
 
@@ -221,9 +231,7 @@ class MeshCollector:
             face.normal_flip()
             face.normal_update()
         face.smooth = smooth
-        for loop in face.loops:
-            co = loop.vert.co
-            loop[uv_layer].uv = (co.x * uv_scale, co.y * uv_scale)
+        self.project_face_tangent_uvs(face, uv_layer, uv_scale)
         if len(pts_3d) > 4:
             bmesh.ops.triangulate(bm, faces=[face], quad_method="BEAUTY", ngon_method="EAR_CLIP")
 
@@ -340,15 +348,10 @@ class MeshCollector:
 
         for i in range(segments):
             ni = (i + 1) % segments
-            u0 = i / segments
-            u1 = (i + 1) / segments
-            v0 = 0.0
-            v1 = height * uv_scale
             try:
                 f = bm.faces.new([b_verts[i], b_verts[ni], t_verts[ni], t_verts[i]])
                 f.smooth = smooth
-                for loop, uv in zip(f.loops, [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]):
-                    loop[uv_layer].uv = uv
+                self.project_face_tangent_uvs(f, uv_layer, uv_scale)
             except ValueError:
                 pass
 
@@ -356,9 +359,7 @@ class MeshCollector:
             try:
                 ft = bm.faces.new(t_verts)
                 ft.smooth = False
-                for loop in ft.loops:
-                    co = loop.vert.co
-                    loop[uv_layer].uv = ((co.x - cx) * uv_scale + 0.5, (co.y - cy) * uv_scale + 0.5)
+                self.project_face_tangent_uvs(ft, uv_layer, uv_scale)
             except ValueError:
                 pass
 
@@ -366,9 +367,7 @@ class MeshCollector:
             try:
                 fb = bm.faces.new(list(reversed(b_verts)))
                 fb.smooth = False
-                for loop in fb.loops:
-                    co = loop.vert.co
-                    loop[uv_layer].uv = ((co.x - cx) * uv_scale + 0.5, (co.y - cy) * uv_scale + 0.5)
+                self.project_face_tangent_uvs(fb, uv_layer, uv_scale)
             except ValueError:
                 pass
 
@@ -406,13 +405,10 @@ class MeshCollector:
 
         for i in range(segments):
             ni = (i + 1) % segments
-            u0 = i / segments
-            u1 = (i + 1) / segments
             try:
                 f = bm.faces.new([ring0[i], ring0[ni], ring1[ni], ring1[i]])
                 f.smooth = smooth
-                for loop, uv in zip(f.loops, [(u0, 0.0), (u1, 0.0), (u1, length * 0.7), (u0, length * 0.7)]):
-                    loop[uv_layer].uv = uv
+                self.project_face_tangent_uvs(f, uv_layer, 0.8)
             except ValueError:
                 pass
 
@@ -420,8 +416,7 @@ class MeshCollector:
             try:
                 fe = bm.faces.new(ring1)
                 fe.smooth = smooth
-                for loop in fe.loops:
-                    loop[uv_layer].uv = (0.5, 0.5)
+                self.project_face_tangent_uvs(fe, uv_layer, 0.8)
             except ValueError:
                 pass
 
@@ -464,9 +459,7 @@ class MeshCollector:
                 try:
                     f = bm.faces.new([row0[s_idx], row0[ns], row1[ns], row1[s_idx]])
                     f.smooth = smooth
-                    for loop in f.loops:
-                        co = loop.vert.co
-                        loop[uv_layer].uv = ((co.x - cx) * uv_scale + 0.5, (co.y - cy) * uv_scale + 0.5)
+                    self.project_face_tangent_uvs(f, uv_layer, uv_scale)
                 except ValueError:
                     pass
 
@@ -476,9 +469,7 @@ class MeshCollector:
             try:
                 f = bm.faces.new([last_row[s_idx], last_row[ns], top_v])
                 f.smooth = smooth
-                for loop in f.loops:
-                    co = loop.vert.co
-                    loop[uv_layer].uv = ((co.x - cx) * uv_scale + 0.5, (co.y - cy) * uv_scale + 0.5)
+                self.project_face_tangent_uvs(f, uv_layer, uv_scale)
             except ValueError:
                 pass
 
@@ -540,16 +531,29 @@ class MeshCollector:
                     r, g, b = ao, ao * 0.99, ao * 0.97
 
                 elif is_ground:
-                    # Organic wear & dust patches across flagstones and cobble setts
-                    wear = 0.89 + 0.07 * n_macro + 0.04 * n_micro
-                    # Extra curb-gutter darkening along the edges of David Street & Jaffa Gate passage
-                    if 76.0 <= vx <= 165.0 and (abs(vy - 5.6) < 1.1 or abs(vy + 1.6) < 1.1):
-                        wear *= 0.76
-                    elif -8.5 <= vx <= 4.5 and -5.5 <= vy <= 5.5:
+                    # Weathered medium-dark grey Jerusalem stone cobbles & flagstones (so sunlit ground never washes out to white!)
+                    wear = 0.66 + 0.06 * n_macro + 0.04 * n_micro
+                    # Darker grey cobble carriageway through 1898 Breach & Omar Square (`-16..62, y=-15..6.5`)
+                    if -16.0 <= vx <= 62.0 and -15.0 <= vy <= 6.5 and not (-8.5 <= vx <= 4.5 and -0.5 <= vy <= 5.5):
+                        wear *= 0.80
+                    # West Plaza darker stone grid banding (`pair_west_plaza.jpg`)
+                    elif vx < -8.5 and -16.0 <= vy <= 18.0:
+                        if abs((vx % 5.0) - 2.5) < 0.45 or abs((vy % 5.0) - 2.5) < 0.45:
+                            wear *= 0.82
+                    # Shaded dark-grey stone flagstones in David Street Souq & Latin Patriarchate Road canyons
+                    if 78.0 <= vx <= 165.0 and -2.0 <= vy <= 6.0:
                         wear *= 0.84
-                    r = min(1.0, wear * 1.01)
-                    g = min(1.0, wear * 0.98)
-                    b = min(1.0, wear * 0.94)
+                        if abs(vy - 4.8) < 0.9 or abs(vy + 0.8) < 0.9:
+                            wear *= 0.82
+                    elif 20.5 <= vx <= 27.5 and 11.0 <= vy <= 58.0:
+                        wear *= 0.84
+                        if abs(vx - 21.3) < 0.8 or abs(vx - 26.7) < 0.8:
+                            wear *= 0.82
+                    elif -8.5 <= vx <= 4.5 and -5.5 <= vy <= 5.5:
+                        wear *= 0.82
+                    r = min(1.0, wear * 0.95)
+                    g = min(1.0, wear * 0.95)
+                    b = min(1.0, wear * 0.96)
 
                 else:
                     # Trees & street props: subtle vertical gradient
@@ -933,28 +937,32 @@ def _build_single_trash_bag(
     x: float,
     y: float,
     z: float,
-    rx: float = 0.26,
-    ry: float = 0.24,
-    height: float = 0.46,
+    rx: float = 0.25,
+    ry: float = 0.22,
+    height: float = 0.34,
     mat_name: str = "mat_trash_black",
     rot_z: float = 0.0,
 ) -> None:
+    """
+    Builds a slumped, flat-bottomed tied trash bag resting directly on the ground (`z = z0`)
+    with isotropic tangent-plane UVs on every face.
+    """
     bm, uv_layer = collector.get_bm("StreetProps", mat_name)
     segs = 6
     ca_r, sa_r = math.cos(rot_z), math.sin(rot_z)
 
     profile = [
-        (0.00, 0.74),
-        (0.36, 1.06),
-        (0.76, 0.82),
-        (1.00, 0.36),
+        (0.00, 0.92),
+        (0.32, 1.04),
+        (0.74, 0.76),
+        (1.00, 0.28),
     ]
     rings: List[List[bmesh.types.BMVert]] = []
     for r_idx, (zf, r_scale) in enumerate(profile):
         row = []
         for s_idx in range(segs):
             ang = (2.0 * math.pi * s_idx) / segs
-            crinkle = 1.0 + (0.08 if (s_idx + r_idx) % 2 == 0 else -0.06)
+            crinkle = 1.0 + (0.06 if (s_idx + r_idx) % 2 == 0 else -0.05)
             lx = math.cos(ang) * rx * r_scale * crinkle
             ly = math.sin(ang) * ry * r_scale * crinkle
             wx = x + lx * ca_r - ly * sa_r
@@ -970,17 +978,15 @@ def _build_single_trash_bag(
             ns = (s_idx + 1) % segs
             try:
                 f = bm.faces.new([r0[s_idx], r0[ns], r1[ns], r1[s_idx]])
-                f.smooth = True
-                for loop in f.loops:
-                    loop[uv_layer].uv = (s_idx / segs, r_idx / len(rings))
+                f.smooth = False
+                collector.project_face_tangent_uvs(f, uv_layer, uv_scale=1.1)
             except ValueError:
                 pass
 
     try:
         ft = bm.faces.new(rings[-1])
-        ft.smooth = True
-        for loop in ft.loops:
-            loop[uv_layer].uv = (0.5, 0.5)
+        ft.smooth = False
+        collector.project_face_tangent_uvs(ft, uv_layer, uv_scale=1.1)
     except ValueError:
         pass
 
@@ -991,37 +997,36 @@ def build_garbage_pile(
     y: float,
     z: float,
     rot_z: float = 0.0,
-    bag_count: int = 3,
+    bag_count: int = 2,
     seed: int = 0,
 ) -> None:
     rng = random.Random(seed + int(x * 17 + y * 29))
     ca, sa = math.cos(rot_z), math.sin(rot_z)
 
+    # Wooden crate on the ground next to 1–2 slumped trash bags
+    collector.add_box(
+        "StreetProps",
+        "mat_cardboard",
+        (x, y, z + 0.16),
+        (0.52, 0.38, 0.32),
+        rot_z=rot_z,
+        uv_scale=0.8,
+    )
+
     offsets = [
-        (0.0, 0.0),
-        (0.36, 0.12),
-        (-0.32, 0.16),
-        (0.12, 0.38),
+        (0.42, 0.06),
+        (0.24, 0.36),
     ]
     for i in range(min(bag_count, len(offsets))):
         ox, oy = offsets[i]
         wx = x + ox * ca - oy * sa
         wy = y + ox * sa + oy * ca
         mat = "mat_trash_blue" if i == 1 else "mat_trash_black"
-        rx = rng.uniform(0.22, 0.29)
-        ry = rng.uniform(0.20, 0.27)
-        bh = rng.uniform(0.38, 0.52)
+        rx = rng.uniform(0.21, 0.26)
+        ry = rng.uniform(0.19, 0.24)
+        bh = rng.uniform(0.30, 0.38)
         _build_single_trash_bag(collector, wx, wy, z, rx=rx, ry=ry, height=bh, mat_name=mat, rot_z=rot_z + i * 0.7)
 
-    cb_x = x + 0.45 * ca + 0.22 * sa
-    cb_y = y + 0.45 * sa - 0.22 * ca
-    collector.add_box(
-        "StreetProps",
-        "mat_cardboard",
-        (cb_x, cb_y, z + 0.03),
-        (0.58, 0.42, 0.06),
-        rot_z=rot_z + 0.35,
-    )
     collector.bump_count("garbage_piles")
 
 
@@ -1034,82 +1039,47 @@ def build_street_trash_scatter(
     seed: int = 0,
 ) -> None:
     """
-    Scatters realistic Old City street litter, swept dirt/gravel patches, flattened
-    cardboard cartons, crumpled paper wrappers, discarded cups/cans, and 1–2 tied trash bags
-    along curb edges and wall bases.
+    Places 1–2 slumped, flat-bottomed textured trash bags resting directly on the ground (`z = z0`)
+    tucked neatly beside a wooden crate (ZERO hexagonal dirt mound pyramids, ZERO floating flat squares!).
     """
     rng = random.Random(seed + int(x * 31 + y * 53))
+    rot = rng.uniform(0.0, math.pi)
+    ca, sa = math.cos(rot), math.sin(rot)
 
-    # 1. Low bevelled curb-dirt / swept grit patch (`mat_stone_rubble`)
-    collector.add_cylinder(
+    # 1. Compact wooden crate resting flat on the pavement (`z = z0`)
+    collector.add_box(
         "StreetProps",
-        "mat_stone_rubble",
-        (x, y, z - 0.01),
-        r_bottom=radius * 0.55,
-        r_top=radius * 0.25,
-        height=0.045,
-        segments=6,
-        smooth=True,
+        "mat_cardboard",
+        (x, y, z + 0.15),
+        (0.48, 0.34, 0.30),
+        rot_z=rot,
+        uv_scale=0.85,
     )
 
-    # 2. 1–2 tied rubbish bags at the anchor corner
+    # 2. 1–2 slumped, flat-bottomed dark trash bags tucked right against the crate (`z = z0`)
     _build_single_trash_bag(
         collector,
-        x + rng.uniform(-0.18, 0.18),
-        y + rng.uniform(-0.18, 0.18),
+        x + 0.36 * ca,
+        y + 0.36 * sa,
         z,
-        rx=0.25,
-        ry=0.22,
-        height=0.44,
+        rx=0.23,
+        ry=0.20,
+        height=0.33,
         mat_name="mat_trash_black",
-        rot_z=rng.uniform(0.0, 3.14),
+        rot_z=rot + 0.4,
     )
-    if rng.random() < 0.65:
+    if rng.random() < 0.55:
         _build_single_trash_bag(
             collector,
-            x + rng.uniform(0.20, 0.38),
-            y + rng.uniform(-0.25, 0.25),
+            x + 0.18 * ca - 0.30 * sa,
+            y + 0.18 * sa + 0.30 * ca,
             z,
-            rx=0.21,
-            ry=0.20,
-            height=0.36,
+            rx=0.20,
+            ry=0.18,
+            height=0.28,
             mat_name="mat_trash_blue",
-            rot_z=rng.uniform(0.0, 3.14),
+            rot_z=rot + 1.1,
         )
-
-    # 3. 5 scattered small litter items (flattened cardboard, crumpled paper, crushed cans/cups)
-    for k in range(5):
-        ang = rng.uniform(0.0, math.pi * 2.0)
-        dist = rng.uniform(0.28, radius)
-        lx = x + math.cos(ang) * dist
-        ly = y + math.sin(ang) * dist
-        rot = rng.uniform(0.0, math.pi * 2.0)
-        kind = k % 3
-        if kind == 0:
-            collector.add_box(
-                "StreetProps",
-                "mat_cardboard",
-                (lx, ly, z + 0.02),
-                (rng.uniform(0.26, 0.48), rng.uniform(0.18, 0.34), 0.03),
-                rot_z=rot,
-            )
-        elif kind == 1:
-            collector.add_box(
-                "StreetProps",
-                "mat_plaster",
-                (lx, ly, z + 0.035),
-                (rng.uniform(0.09, 0.16), rng.uniform(0.08, 0.14), rng.uniform(0.04, 0.07)),
-                rot_z=rot,
-            )
-        else:
-            c_mat = "mat_trash_blue" if k % 2 == 0 else "mat_terracotta"
-            collector.add_box(
-                "StreetProps",
-                c_mat,
-                (lx, ly, z + 0.04),
-                (0.12, 0.07, 0.06),
-                rot_z=rot,
-            )
 
     collector.bump_count("trash_scatters")
 
@@ -1121,43 +1091,8 @@ def build_wall_utility_box(
     normal_xy: Vec2,
     seed: int = 0,
 ) -> None:
-    """
-    Builds a weathered Jerusalem municipal steel electrical/telecom junction box
-    mounted on a stone wall pier with a vertical galvanized conduit pipe.
-    """
-    cx, cy, cz = center_xyz
-    tx, ty = tangent_xy
-    nx, ny = normal_xy
-    hw = 0.21
-    hh = 0.28
-
-    p0 = (cx - tx * hw, cy - ty * hw)
-    p1 = (cx + tx * hw, cy + ty * hw)
-    collector.add_oriented_box(
-        "StreetProps",
-        "mat_corrugated_metal",
-        p0,
-        p1,
-        cz - hh,
-        cz + hh,
-        0.0,
-        0.12,
-        normal_xy,
-    )
-    px = cx + nx * 0.03
-    py = cy + ny * 0.03
-    collector.add_cylinder(
-        "StreetProps",
-        "mat_iron_dark",
-        (px, py, cz - hh - 1.35),
-        0.018,
-        0.018,
-        2.95,
-        segments=4,
-        smooth=False,
-        cap_top=False,
-    )
-    collector.bump_count("utility_boxes")
+    """No-op so no placeholder grey utility boxes are stuck onto stone shop piers."""
+    return
 
 
 def build_wheelie_bin(
@@ -1167,14 +1102,13 @@ def build_wheelie_bin(
     z: float,
     rot_z: float = 0.0,
 ) -> None:
-    collector.add_box("StreetProps", "mat_awning_green", (x, y, z + 0.54), (0.64, 0.56, 0.92), rot_z=rot_z)
-    collector.add_box("StreetProps", "mat_awning_green", (x, y, z + 1.01), (0.70, 0.62, 0.07), rot_z=rot_z)
-    _build_single_trash_bag(collector, x + 0.08, y, z + 0.85, rx=0.22, ry=0.20, height=0.32, mat_name="mat_trash_black")
+    collector.add_box("StreetProps", "mat_awning_green", (x, y, z + 0.52), (0.62, 0.54, 0.88), rot_z=rot_z, uv_scale=0.8)
+    collector.add_box("StreetProps", "mat_iron_dark", (x, y, z + 0.99), (0.68, 0.60, 0.06), rot_z=rot_z, uv_scale=0.8)
     ca, sa = math.cos(rot_z), math.sin(rot_z)
-    for side in (-0.28, 0.28):
+    for side in (-0.26, 0.26):
         wx = x + side * ca
         wy = y + side * sa
-        collector.add_cylinder("StreetProps", "mat_iron_dark", (wx, wy, z), 0.09, 0.09, 0.16, segments=6, smooth=True)
+        collector.add_cylinder("StreetProps", "mat_iron_dark", (wx, wy, z), 0.09, 0.09, 0.14, segments=6, smooth=True)
     collector.bump_count("wheelie_bins")
 
 
@@ -1551,26 +1485,50 @@ def build_souq_display(
     width: float = 2.0,
     seed: int = 0,
 ) -> None:
-    rng = random.Random(seed + int(center_xyz[0] * 11 + center_xyz[1] * 27))
+    """
+    Builds a clean wooden display table with a textured woven carpet/fabric runner
+    (`mat_awning_red`) and 2 wooden merchandise crates on top (zero cones or faceted cylinders).
+    """
     cx, cy, cz = center_xyz
     tx, ty = tangent_xy
     nx, ny = normal_xy
+    rot = math.atan2(ty, tx)
 
-    for side_sign in (-1.0, 1.0):
-        sx = cx + tx * (side_sign * (width * 0.34)) + nx * 0.34
-        sy = cy + ty * (side_sign * (width * 0.34)) + ny * 0.34
-        rot = math.atan2(ty, tx)
+    # Center display table in front of the open bay threshold so it never touches the stone arch piers
+    table_w = min(0.68, width * 0.42)
+    sx = cx + nx * 0.44
+    sy = cy + ny * 0.44
 
-        if side_sign < 0:
-            collector.add_box("StreetProps", "mat_cardboard", (sx, sy, cz + 0.18), (0.62, 0.42, 0.36), rot_z=rot)
-            for k, spice_mat in enumerate(("mat_terracotta", "mat_awning_red")):
-                kx = sx + tx * ((k - 0.5) * 0.26)
-                ky = sy + ty * ((k - 0.5) * 0.26)
-                collector.add_cylinder("StreetProps", "mat_cardboard", (kx, ky, cz + 0.36), 0.12, 0.11, 0.22, segments=6, smooth=True)
-                collector.add_cylinder("StreetProps", spice_mat, (kx, ky, cz + 0.58), 0.11, 0.01, 0.13, segments=6, smooth=True)
-        else:
-            collector.add_cylinder("StreetProps", "mat_terracotta", (sx, sy, cz), 0.14, 0.20, 0.34, segments=6, smooth=True)
-            collector.add_cylinder("StreetProps", "mat_terracotta", (sx, sy, cz + 0.34), 0.20, 0.11, 0.24, segments=6, smooth=True)
+    # Wooden display table base & top (`mat_wood_doors`, `door_wood` quadrant)
+    collector.add_box(
+        "StreetProps",
+        "mat_wood_doors",
+        (sx, sy, cz + 0.26),
+        (table_w, 0.42, 0.52),
+        rot_z=rot,
+        uv_rect=(0.04, 0.04, 0.46, 0.46),
+    )
+    # Textured woven fabric table runner (`mat_awning_red`, slightly proud to avoid coplanarity)
+    collector.add_box(
+        "StreetProps",
+        "mat_awning_red",
+        (sx, sy, cz + 0.50),
+        (table_w + 0.04, 0.46, 0.08),
+        rot_z=rot,
+        uv_scale=0.85,
+    )
+    # 2 wooden merchandise crates on top of the runner
+    for k, crate_mat in enumerate(("mat_cardboard", "mat_terracotta")):
+        kx = sx + tx * ((k - 0.5) * (table_w * 0.42))
+        ky = sy + ty * ((k - 0.5) * (table_w * 0.42))
+        collector.add_box(
+            "StreetProps",
+            crate_mat,
+            (kx, ky, cz + 0.63),
+            (0.24, 0.26, 0.16),
+            rot_z=rot + (0.06 if k == 0 else -0.06),
+            uv_scale=0.95,
+        )
 
     collector.bump_count("souq_displays")
 

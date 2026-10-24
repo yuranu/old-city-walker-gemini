@@ -85,10 +85,10 @@ const FALLBACK_PLACES = [
     id: 'omar_square_north',
     name: 'New Imperial Hotel & Petra Hotel North Facades',
     subtitle: '19th-century stone arcade, iron balconies, and ground-floor bazaar shops',
-    x: 33.5,
-    y: 1.5,
+    x: 26.5,
+    y: -1.5,
     z_eye: 1.7,
-    heading: 12.0,
+    heading: 8.0,
     pitch: 8.0,
     fov: 70.0,
     photo: '/references/omar_square_north.jpg'
@@ -109,10 +109,10 @@ const FALLBACK_PLACES = [
     id: 'latin_patriarchate_lane',
     name: 'Latin Patriarchate Road',
     subtitle: 'Walled stone lane heading north into the Christian Quarter',
-    x: 26.5,
-    y: 28.0,
+    x: 24.0,
+    y: 22.0,
     z_eye: 1.7,
-    heading: 358.0,
+    heading: 0.0,
     pitch: 4.0,
     fov: 70.0,
     photo: '/references/latin_patriarchate_lane.jpg'
@@ -121,7 +121,7 @@ const FALLBACK_PLACES = [
     id: 'david_street_souq',
     name: 'David Street Stepped Souq Entrance',
     subtitle: 'Narrow stepped market descent lined with colorful Old City bazaar stalls',
-    x: 82.0,
+    x: 78.2,
     y: 2.0,
     z_eye: 1.7,
     heading: 90.0,
@@ -262,6 +262,13 @@ function enhanceMaterial(mat, child, maxAniso) {
   // Enable baked vertex colors (COLOR_0 ground-contact dirt & crevice AO) whenever present on geometry
   if (child.geometry?.attributes?.color) {
     mat.vertexColors = true;
+  }
+
+  // Apply realistic weathered Jerusalem grey-stone value contrast to ground paving so sunlit plazas/roads never wash out
+  if (matName.includes('mat_paving_flagstone')) {
+    mat.color.setRGB(0.68, 0.66, 0.64);
+  } else if (matName.includes('mat_paving')) {
+    mat.color.setRGB(0.54, 0.53, 0.52);
   }
 
   // Maximize anisotropic filtering on all textures (capped at 8x for optimal GPU bandwidth)
@@ -923,6 +930,41 @@ async function initApp() {
       renderFrame(true);
       renderFrame(true);
       return player.getPoseENU();
+    },
+
+    auditScene() {
+      const missingAlbedo = [];
+      const missingNormal = [];
+      const uvStretchSuspects = [];
+
+      for (const mesh of allSceneMeshes) {
+        if (!mesh.isMesh || !mesh.geometry) continue;
+        const name = mesh.name || 'unnamed_mesh';
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const m of mats) {
+          if (!m) continue;
+          const mName = m.name || 'unnamed_mat';
+          if (!m.map && !mName.includes('lantern_glow')) {
+            missingAlbedo.push(`${name} (${mName})`);
+          }
+          if (!m.normalMap && !mName.includes('lantern_glow') && !mName.includes('signs')) {
+            missingNormal.push(`${name} (${mName})`);
+          }
+        }
+
+        const pos = mesh.geometry.attributes?.position;
+        const uv = mesh.geometry.attributes?.uv;
+        if (!uv && pos) {
+          uvStretchSuspects.push({ mesh: name, reason: 'missing_uv_attribute' });
+        }
+      }
+
+      return {
+        meshCount: allSceneMeshes.length,
+        missingAlbedo,
+        missingNormal,
+        uvStretchSuspects
+      };
     }
   };
 
