@@ -1486,48 +1486,62 @@ def build_souq_display(
     seed: int = 0,
 ) -> None:
     """
-    Builds a clean wooden display table with a textured woven carpet/fabric runner
-    (`mat_awning_red`) and 2 wooden merchandise crates on top (zero cones or faceted cylinders).
+    Builds an authentic Jerusalem souq merchant display stall (`0.78m` counter height)
+    with a timber counter base, woven kilim runner, 3 compartmentalized wooden spice/produce
+    trays topped with colorful spice/fruit mounds (`mat_terracotta`, `mat_dome_gold`,
+    `mat_awning_green`), and a terracotta jar beside the stall.
     """
     cx, cy, cz = center_xyz
     tx, ty = tangent_xy
     nx, ny = normal_xy
     rot = math.atan2(ty, tx)
 
-    # Center display table in front of the open bay threshold so it never touches the stone arch piers
-    table_w = min(0.68, width * 0.42)
-    sx = cx + nx * 0.44
-    sy = cy + ny * 0.44
+    table_w = min(1.28, max(0.82, width * 0.62))
+    sx = cx + nx * 0.48
+    sy = cy + ny * 0.48
 
-    # Wooden display table base & top (`mat_wood_doors`, `door_wood` quadrant)
+    # 1. Waist-high wooden merchant counter base (`0.74m` tall)
     collector.add_box(
         "StreetProps",
         "mat_wood_doors",
-        (sx, sy, cz + 0.26),
-        (table_w, 0.42, 0.52),
+        (sx, sy, cz + 0.37),
+        (table_w, 0.54, 0.74),
         rot_z=rot,
         uv_rect=(0.04, 0.04, 0.46, 0.46),
     )
-    # Textured woven fabric table runner (`mat_awning_red`, slightly proud to avoid coplanarity)
+    # 2. Woven kilim / fabric counter runner (`mat_awning_striped` or `mat_awning_red`)
+    runner_mat = "mat_awning_striped" if seed % 2 == 0 else "mat_awning_red"
     collector.add_box(
         "StreetProps",
-        "mat_awning_red",
-        (sx, sy, cz + 0.50),
-        (table_w + 0.04, 0.46, 0.08),
+        runner_mat,
+        (sx, sy, cz + 0.77),
+        (table_w + 0.06, 0.58, 0.07),
         rot_z=rot,
         uv_scale=0.85,
     )
-    # 2 wooden merchandise crates on top of the runner
-    for k, crate_mat in enumerate(("mat_cardboard", "mat_terracotta")):
-        kx = sx + tx * ((k - 0.5) * (table_w * 0.42))
-        ky = sy + ty * ((k - 0.5) * (table_w * 0.42))
+    # 3. Three wooden produce/spice trays with colorful heaped spice/produce domes on top
+    tray_mats = ("mat_terracotta", "mat_dome_gold", "mat_awning_green")
+    for k in range(3):
+        off_t = (k - 1.0) * (table_w * 0.31)
+        kx = sx + tx * off_t
+        ky = sy + ty * off_t
         collector.add_box(
             "StreetProps",
-            crate_mat,
-            (kx, ky, cz + 0.63),
-            (0.24, 0.26, 0.16),
-            rot_z=rot + (0.06 if k == 0 else -0.06),
-            uv_scale=0.95,
+            "mat_cardboard",
+            (kx, ky, cz + 0.86),
+            (0.28, 0.36, 0.12),
+            rot_z=rot + (0.04 if k == 0 else (-0.04 if k == 2 else 0.0)),
+            uv_scale=0.9,
+        )
+        collector.add_dome(
+            "StreetProps",
+            tray_mats[(seed + k) % 3],
+            (kx, ky, cz + 0.91),
+            radius=0.13,
+            height=0.14,
+            rings=3,
+            segments=6,
+            smooth=True,
         )
 
     collector.bump_count("souq_displays")
