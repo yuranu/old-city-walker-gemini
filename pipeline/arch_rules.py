@@ -1190,16 +1190,16 @@ def _build_lod2_building(
                 cap_ends=False,
             )
 
-        # Ground-floor framed wooden portal & upper-floor stone-framed shuttered windows on walls >= 3.2m
-        if edge_len >= 3.2:
-            n_wins = 2 if edge_len >= 8.2 else 1
+        # Ground-floor framed wooden portal & upper-floor stone-framed shuttered windows on street-facing walls >= 4.2m
+        if edge_len >= 4.2:
+            n_wins = 2 if edge_len >= 8.6 else 1
             for w_i in range(n_wins):
                 u_frac = (w_i + 1) / (n_wins + 1)
                 bx = p0[0] + (p1[0] - p0[0]) * u_frac
                 by = p0[1] + (p1[1] - p0[1]) * u_frac
 
                 # Ground-floor framed Jerusalem timber doorway on primary street walls
-                if w_i == 0 and edge_len >= 3.8:
+                if w_i == 0 and edge_len >= 4.6:
                     df_x, df_y = bx + nx * 0.035, by + ny * 0.035
                     dw_x, dw_y = bx + nx * 0.055, by + ny * 0.055
                     d_hw = 0.68
