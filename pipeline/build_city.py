@@ -621,6 +621,10 @@ def should_skip_osm_building(b: dict) -> bool:
             return True
 
     cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
+    # Keep `r01_jaffa_gate` strictly within the Jaffa Gate / Omar Square / Citadel / Upper David St sector
+    # so it never duplicates buildings belonging to `r02`, `r03`, `r04`, or `r05`!
+    if cx > 170.0 or cy > 90.0 or cy < -105.0:
+        return True
     if corridor_distance(cx, cy) > 95.0:
         return True
 
@@ -813,6 +817,7 @@ def main() -> None:
         "r06_western_wall_dung_gate",
         "r07_temple_mount",
         "r08_muslim_quarter_north_gates",
+        "r09_muslim_quarter_east",
     ]
     target_regions = ["r01_jaffa_gate"]
     if "--" in sys.argv:

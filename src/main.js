@@ -787,6 +787,7 @@ async function initApp() {
   const posEl = document.getElementById('hud-pos');
   const hdgEl = document.getElementById('hud-hdg');
   const distEl = document.getElementById('hud-dist');
+  const tpSummaryEl = document.getElementById('tp-current-summary');
   let lastHudUpdateTime = 0;
   let lastHudX = NaN;
   let lastHudY = NaN;
@@ -823,6 +824,7 @@ async function initApp() {
 
     if (nameEl && activePlace) nameEl.textContent = activePlace.name;
     if (subEl && activePlace) subEl.textContent = activePlace.subtitle;
+    if (tpSummaryEl && activePlace) tpSummaryEl.textContent = activePlace.name;
     if (posEl) {
       const signX = pose.x >= 0 ? '+' : '';
       const signY = pose.y >= 0 ? '+' : '';
@@ -839,6 +841,9 @@ async function initApp() {
     minimap.render(pose, activePlace?.id, camera.fov);
   }
 
+  const teleportDialog = document.getElementById('teleport-dialog');
+  const teleportSearch = document.getElementById('teleport-search');
+
   function teleportToPlace(place) {
     if (!place) return;
     activePlace = place;
@@ -854,27 +859,137 @@ async function initApp() {
     document.querySelectorAll('.tp-btn').forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.placeId === place.id);
     });
+    if (teleportDialog?.open) {
+      teleportDialog.close();
+    }
     updateHUD(true);
   }
 
-  function buildTeleportBar() {
-    const bar = document.getElementById('teleport-bar');
-    if (!bar) return;
-    bar.innerHTML = '';
+  function classifyPlaceCategory(place) {
+    const id = (place.id || '').toLowerCase();
+    const nm = (place.name || '').toLowerCase();
+    if (
+      id.includes('gate') ||
+      id.includes('breach') ||
+      id.includes('tower_of_david') ||
+      id.includes('west_plaza') ||
+      nm.includes('gate') ||
+      nm.includes('citadel')
+    ) {
+      return 'Gates & Fortifications';
+    }
+    if (
+      id.includes('sepulchre') ||
+      id.includes('redeemer') ||
+      id.includes('cathedral') ||
+      id.includes('synagogue') ||
+      id.includes('western_wall') ||
+      id.includes('dome_of') ||
+      id.includes('al_aqsa')
+    ) {
+      return 'Temples, Churches, Mosques & Synagogues';
+    }
+    return 'Souqs, Plazas & Historic Streets';
+  }
+
+  function buildTeleportBar(filterText = '') {
+    const container = document.getElementById('teleport-categories');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const query = filterText.trim().toLowerCase();
+    const categories = [
+      'Gates & Fortifications',
+      'Temples, Churches, Mosques & Synagogues',
+      'Souqs, Plazas & Historic Streets'
+    ];
+    const grouped = new Map(categories.map((c) => [c, []]));
 
     places.forEach((place, idx) => {
-      const keyLabel = idx < 9 ? String(idx + 1) : idx === 9 ? '0' : `P${idx + 1}`;
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'tp-btn' + (place.id === activePlace?.id ? ' active' : '');
-      btn.dataset.placeId = place.id;
-      const shortName = place.shortName || place.name.replace(/\s*\(.*?\)\s*/g, '').split('—')[0].trim();
-      btn.innerHTML = `<span class="tp-key">${keyLabel}</span><span>${shortName}</span>`;
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        teleportToPlace(place);
-      });
-      bar.appendChild(btn);
+      if (query) {
+        const hay = `${place.name} ${place.subtitle || ''} ${place.shortName || ''} ${place.id}`.toLowerCase();
+        if (!hay.includes(query)) return;
+      }
+      const cat = classifyPlaceCategory(place);
+      grouped.get(cat).push({ place, idx });
+    });
+
+    for (const [catName, entries] of grouped.entries()) {
+      if (entries.length === 0) continue;
+      const sec = document.createElement('section');
+      const title = document.createElement('div');
+      title.className = 'tp-cat-title';
+      title.textContent = `${catName} (${entries.length})`;
+      sec.appendChild(title);
+
+      const grid = document.createElement('div');
+      grid.className = 'tp-grid';
+
+      for (const { place, idx } of entries) {
+        const keyLabel = idx < 9 ? String(idx + 1) : idx === 9 ? '0' : `#${idx + 1}`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tp-btn' + (place.id === activePlace?.id ? ' active' : '');
+        btn.dataset.placeId = place.id;
+        const shortName = place.shortName || place.name.split('—')[0].trim();
+        btn.innerHTML = `
+          <div class="tp-btn-top">
+            <span>${shortName}</span>
+            <span class="tp-key">${keyLabel}</span>
+          </div>
+          <div class="tp-btn-sub">${place.subtitle || place.name}</div>
+        `;
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          teleportToPlace(place);
+        });
+        grid.appendChild(btn);
+      }
+
+      sec.appendChild(grid);
+      container.appendChild(sec);
+    }
+
+    const openBtn = document.getElementById('btn-open-teleport');
+    if (openBtn) {
+      openBtn.innerHTML = `<span>Teleport (${places.length} Locations)</span><span class="tp-key">T</span>`;
+    }
+  }
+
+  function openTeleportModal() {
+    if (!teleportDialog) return;
+    if (teleportDialog.open) {
+      teleportDialog.close();
+      return;
+    }
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+    if (teleportSearch) {
+      teleportSearch.value = '';
+    }
+    buildTeleportBar('');
+    teleportDialog.showModal();
+  }
+
+  // Fallback for browsers without declarative <dialog closedby="any"> support
+  if (teleportDialog && !('closedBy' in HTMLDialogElement.prototype)) {
+    teleportDialog.addEventListener('click', (event) => {
+      if (event.target !== teleportDialog) return;
+      const rect = teleportDialog.getBoundingClientRect();
+      const isDialogContent =
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width;
+      if (isDialogContent) return;
+      teleportDialog.close();
+    });
+  }
+
+  if (teleportSearch) {
+    teleportSearch.addEventListener('input', () => {
+      buildTeleportBar(teleportSearch.value);
     });
   }
 
@@ -885,8 +1000,12 @@ async function initApp() {
   const btnPhotoClose = document.getElementById('btn-photo-close');
   const btnSnapPhoto = document.getElementById('btn-snap-photo');
   const btnMapToggle = document.getElementById('btn-map-toggle');
+  const btnMinimapZoom = document.getElementById('btn-minimap-zoom');
   const btnAoToggle = document.getElementById('btn-ao-toggle');
   const btnFlyToggle = document.getElementById('btn-fly-toggle');
+  const btnTeleportToggle = document.getElementById('btn-teleport-toggle');
+  const btnOpenTeleport = document.getElementById('btn-open-teleport');
+  const btnCloseTeleport = document.getElementById('btn-close-teleport');
 
   const togglePhotoDrawer = () => {
     if (!photoDrawer) return;
@@ -911,12 +1030,26 @@ async function initApp() {
   if (btnPhotoClose) btnPhotoClose.addEventListener('click', (e) => { e.stopPropagation(); togglePhotoDrawer(); });
   if (btnSnapPhoto) btnSnapPhoto.addEventListener('click', (e) => { e.stopPropagation(); teleportToPlace(activePlace); });
   if (btnMapToggle) btnMapToggle.addEventListener('click', (e) => { e.stopPropagation(); toggleMinimap(); });
+  if (btnMinimapZoom) {
+    btnMinimapZoom.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isFullCity = minimap.toggleFullCityView();
+      btnMinimapZoom.textContent = isFullCity ? 'Local Zoom' : 'Full City';
+      updateHUD(true);
+    });
+  }
   if (btnAoToggle) btnAoToggle.addEventListener('click', (e) => { e.stopPropagation(); toggleAO(); });
   if (btnFlyToggle) btnFlyToggle.addEventListener('click', (e) => { e.stopPropagation(); player.toggleFlyMode(); });
+  if (btnTeleportToggle) btnTeleportToggle.addEventListener('click', (e) => { e.stopPropagation(); openTeleportModal(); });
+  if (btnOpenTeleport) btnOpenTeleport.addEventListener('click', (e) => { e.stopPropagation(); openTeleportModal(); });
+  if (btnCloseTeleport) btnCloseTeleport.addEventListener('click', (e) => { e.stopPropagation(); teleportDialog?.close(); });
 
   window.addEventListener('keydown', (e) => {
     if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
-    if (e.code === 'KeyM') {
+    if (e.code === 'KeyT') {
+      e.preventDefault();
+      openTeleportModal();
+    } else if (e.code === 'KeyM') {
       toggleMinimap();
     } else if (e.code === 'KeyP') {
       togglePhotoDrawer();
@@ -1130,10 +1263,15 @@ async function initApp() {
   const loaderFill = document.getElementById('loader-bar-fill');
   const loaderStatus = document.getElementById('loader-status');
 
-  const [rawPlacesData, rawManifestData] = await Promise.all([
+  const [rawPlacesData, rawManifestData, rawCityPlanData] = await Promise.all([
     fetchJsonSafe('/data/places.json', null),
-    fetchJsonSafe('/data/scene_manifest.json', null)
+    fetchJsonSafe('/data/scene_manifest.json', null),
+    fetchJsonSafe('/data/city_plan.json', null)
   ]);
+
+  if (rawCityPlanData) {
+    minimap.setCityPlan(rawCityPlanData);
+  }
 
   if (rawPlacesData) {
     const rawList = Array.isArray(rawPlacesData)

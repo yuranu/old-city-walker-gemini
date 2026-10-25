@@ -1,20 +1,25 @@
 import * as THREE from 'three';
 
+/**
+ * Cartographic Streets-Plan Minimap for the Old City of Jerusalem.
+ * Renders a clean vector street plan (`public/data/city_plan.json`) showing:
+ *   - 16th-century Ottoman Old City Wall perimeter & 8 named Gates
+ *   - Temple Mount (Haram al-Sharif) enclosure & Upper Platform
+ *   - Complete OpenStreetMap alley/step network + primary/secondary named streets
+ *   - 5 Historic Quarter labels & key monument outlines (zero mesh-AABB blobs!)
+ *   - Interactive POI markers + live player position & directional FOV cone
+ */
 export class Minimap {
   constructor(canvas, options = {}) {
     this.canvas = canvas;
     this.ctx = canvas ? canvas.getContext('2d') : null;
     this.places = [];
-    this.footprints = {
-      streets: [],
-      buildings: [],
-      walls: [],
-      water: []
-    };
-    this.worldHalfSpan = options.worldHalfSpan ?? 160; // metres around center (scroll to zoom 80m..650m)
+    this.plan = null;
+    this.worldHalfSpan = options.worldHalfSpan ?? 180; // metres around center (scroll to zoom 60m..680m)
     this.centerX = 35;
     this.centerY = 0;
     this.visible = true;
+    this.followPlayer = true;
     this.onSelectPlace = options.onSelectPlace || null;
     this.onTeleportXY = options.onTeleportXY || null;
 
@@ -31,9 +36,9 @@ export class Minimap {
       const py = ((e.clientY - rect.top) / rect.height) * this.canvas.height;
       const world = this._canvasToENU(px, py);
 
-      // Check if user clicked near a place marker first
+      // Check if user clicked near a place or gate marker first
       let closestPlace = null;
-      let closestDist = Math.max(12, this.worldHalfSpan * 0.08);
+      let closestDist = Math.max(14, this.worldHalfSpan * 0.075);
       for (const place of this.places) {
         const pxENU = Number(place.x ?? place.camera?.x ?? 0);
         const pyENU = Number(place.y ?? place.camera?.y ?? 0);
@@ -57,7 +62,8 @@ export class Minimap {
         e.preventDefault();
         e.stopPropagation();
         const factor = e.deltaY > 0 ? 1.22 : 0.82;
-        this.worldHalfSpan = THREE.MathUtils.clamp(this.worldHalfSpan * factor, 75, 650);
+        this.worldHalfSpan = THREE.MathUtils.clamp(this.worldHalfSpan * factor, 60, 680);
+        this.followPlayer = this.worldHalfSpan <= 360;
       },
       { passive: false }
     );
@@ -67,96 +73,28 @@ export class Minimap {
     this.places = Array.isArray(places) ? places : [];
   }
 
+  setCityPlan(planData) {
+    if (planData && typeof planData === 'object') {
+      this.plan = planData;
+    }
+  }
+
+  toggleFullCityView() {
+    if (this.worldHalfSpan > 360) {
+      this.worldHalfSpan = 160;
+      this.followPlayer = true;
+    } else {
+      this.worldHalfSpan = 620;
+      this.followPlayer = false;
+    }
+    return this.worldHalfSpan > 360;
+  }
+
   /**
-   * Populates footprints from scene meshes and optional scene_manifest.json data.
+   * Kept for backwards compatibility; no longer extracts scene mesh AABB blobs.
    */
-  buildFromScene(sceneRoot, manifestData = null) {
-    this.footprints = {
-      streets: [],
-      buildings: [],
-      walls: [],
-      water: []
-    };
-
-    const manifestItems = Array.isArray(manifestData)
-      ? manifestData
-      : Array.isArray(manifestData?.objects)
-      ? manifestData.objects
-      : Array.isArray(manifestData?.features)
-      ? manifestData.features
-      : [];
-
-    for (const item of manifestItems) {
-      if (Array.isArray(item.footprint) && item.footprint.length >= 3) {
-        const category = (item.category || item.rule || item.id || '').toLowerCase();
-        const poly = item.footprint.map((pt) =>
-          Array.isArray(pt) ? { x: Number(pt[0]), y: Number(pt[1]) } : { x: Number(pt.x), y: Number(pt.y) }
-        );
-        if (category.includes('wall') || category.includes('citadel') || category.includes('gate') || category.includes('tower')) {
-          this.footprints.walls.push({ type: 'poly', points: poly });
-        } else if (category.includes('street') || category.includes('paving') || category.includes('plaza') || category.includes('step')) {
-          this.footprints.streets.push({ type: 'poly', points: poly });
-        } else {
-          this.footprints.buildings.push({ type: 'poly', points: poly });
-        }
-      }
-    }
-
-    if (sceneRoot) {
-      const box = new THREE.Box3();
-      sceneRoot.traverse((obj) => {
-        if (!obj.isMesh || !obj.geometry) return;
-        const name = `${obj.name || ''} ${obj.parent?.name || ''}`.toLowerCase();
-        if (
-          name.includes('ground_terrain') ||
-          name.includes('ground_paving') ||
-          name.includes('sky') ||
-          name.includes('foliage') ||
-          name.includes('cable')
-        ) {
-          return;
-        }
-
-        box.setFromObject(obj);
-        if (box.isEmpty()) return;
-
-        const sizeX = box.max.x - box.min.x;
-        const sizeZ = box.max.z - box.min.z;
-        if (sizeX < 1.5 && sizeZ < 1.5) return;
-        if (sizeX > 550 && sizeZ > 550) return;
-
-        const rect = {
-          type: 'rect',
-          minX: box.min.x,
-          maxX: box.max.x,
-          minY: -box.max.z,
-          maxY: -box.min.z
-        };
-
-        if (
-          name.includes('wall') ||
-          name.includes('citadel') ||
-          name.includes('tower') ||
-          name.includes('bastion') ||
-          name.includes('gatehouse') ||
-          name.includes('gate')
-        ) {
-          this.footprints.walls.push(rect);
-        } else if (
-          name.includes('street') ||
-          name.includes('paving') ||
-          name.includes('step') ||
-          name.includes('plaza') ||
-          name.includes('bridge') ||
-          name.includes('passage') ||
-          name.includes('esplanade')
-        ) {
-          this.footprints.streets.push(rect);
-        } else {
-          this.footprints.buildings.push(rect);
-        }
-      });
-    }
+  buildFromScene(_sceneRoot, _manifestData = null) {
+    // Intentionally empty: Minimap now renders clean vector streets plan from city_plan.json
   }
 
   _enuToCanvas(x, y) {
@@ -179,31 +117,41 @@ export class Minimap {
     };
   }
 
-  _drawShapeList(ctx, list, fillStyle, strokeStyle, lineWidth = 1) {
-    ctx.fillStyle = fillStyle;
-    ctx.strokeStyle = strokeStyle;
-    ctx.lineWidth = lineWidth;
+  _tracePolygon(ctx, pts) {
+    if (!pts || pts.length < 3) return;
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const pt = pts[i];
+      const x = Array.isArray(pt) ? pt[0] : pt.x;
+      const y = Array.isArray(pt) ? pt[1] : pt.y;
+      const { cx, cy } = this._enuToCanvas(x, y);
+      if (i === 0) ctx.moveTo(cx, cy);
+      else ctx.lineTo(cx, cy);
+    }
+    ctx.closePath();
+  }
 
-    for (const item of list) {
-      if (item.type === 'poly' && item.points.length >= 3) {
-        ctx.beginPath();
-        item.points.forEach((pt, idx) => {
-          const { cx, cy } = this._enuToCanvas(pt.x, pt.y);
-          if (idx === 0) ctx.moveTo(cx, cy);
-          else ctx.lineTo(cx, cy);
-        });
-        ctx.closePath();
-        ctx.fill();
-        if (strokeStyle) ctx.stroke();
-      } else if (item.type === 'rect') {
-        const pMin = this._enuToCanvas(item.minX, item.maxY);
-        const pMax = this._enuToCanvas(item.maxX, item.minY);
-        const rw = Math.max(2, pMax.cx - pMin.cx);
-        const rh = Math.max(2, pMax.cy - pMin.cy);
-        ctx.fillRect(pMin.cx, pMin.cy, rw, rh);
-        if (strokeStyle) ctx.strokeRect(pMin.cx, pMin.cy, rw, rh);
+  _tracePolyline(ctx, pts) {
+    if (!pts || pts.length < 2) return false;
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    let anyVisible = false;
+    for (let i = 0; i < pts.length; i++) {
+      const { cx, cy } = this._enuToCanvas(pts[i][0], pts[i][1]);
+      if (cx >= -40 && cx <= w + 40 && cy >= -40 && cy <= h + 40) {
+        anyVisible = true;
+        break;
       }
     }
+    if (!anyVisible) return false;
+
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const { cx, cy } = this._enuToCanvas(pts[i][0], pts[i][1]);
+      if (i === 0) ctx.moveTo(cx, cy);
+      else ctx.lineTo(cx, cy);
+    }
+    return true;
   }
 
   render(playerPose, activePlaceId = null, fovDeg = 65) {
@@ -211,25 +159,52 @@ export class Minimap {
     const ctx = this.ctx;
     const w = this.canvas.width;
     const h = this.canvas.height;
+    const dpr = w / 250; // Scale factor relative to 250px logical size
 
     if (playerPose) {
-      if (this.worldHalfSpan <= 320) {
+      if (this.followPlayer && this.worldHalfSpan <= 360) {
         this.centerX = playerPose.x;
         this.centerY = playerPose.y;
       } else {
-        // When zoomed out to full Old City view, center on Old City heart (380, 80)
-        this.centerX = 380;
-        this.centerY = 80;
+        // Center on the heart of the Old City when viewing the full city street plan
+        this.centerX = 365;
+        this.centerY = 155;
       }
     }
 
-    ctx.fillStyle = '#131720';
+    // 1. Exterior Dark Slate Background
+    ctx.fillStyle = '#0e131b';
     ctx.fillRect(0, 0, w, h);
 
-    // Subtle metric grid every 50m or 100m
-    const gridStep = this.worldHalfSpan > 250 ? 100 : 50;
-    ctx.strokeStyle = 'rgba(255, 238, 205, 0.06)';
-    ctx.lineWidth = 1;
+    // 2. Old City Intramural Urban Territory & Temple Mount Esplanade
+    if (this.plan?.cityWall) {
+      this._tracePolygon(ctx, this.plan.cityWall);
+      ctx.fillStyle = '#171f2c';
+      ctx.fill();
+    }
+
+    if (this.plan?.templeMountWall) {
+      this._tracePolygon(ctx, this.plan.templeMountWall);
+      ctx.fillStyle = 'rgba(218, 178, 92, 0.09)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(235, 195, 110, 0.42)';
+      ctx.lineWidth = 1.2 * dpr;
+      ctx.stroke();
+    }
+
+    if (this.plan?.domePlatform) {
+      this._tracePolygon(ctx, this.plan.domePlatform);
+      ctx.fillStyle = 'rgba(235, 195, 110, 0.12)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(243, 200, 120, 0.35)';
+      ctx.lineWidth = 0.9 * dpr;
+      ctx.stroke();
+    }
+
+    // 3. Subtle Cartographic Coordinate Grid
+    const gridStep = this.worldHalfSpan > 280 ? 200 : 100;
+    ctx.strokeStyle = 'rgba(255, 240, 210, 0.045)';
+    ctx.lineWidth = 1 * dpr;
     const startX = Math.floor((this.centerX - this.worldHalfSpan) / gridStep) * gridStep;
     const endX = Math.ceil((this.centerX + this.worldHalfSpan) / gridStep) * gridStep;
     const startY = Math.floor((this.centerY - this.worldHalfSpan) / gridStep) * gridStep;
@@ -250,32 +225,153 @@ export class Minimap {
       ctx.stroke();
     }
 
-    this._drawShapeList(
-      ctx,
-      this.footprints.streets,
-      'rgba(198, 180, 148, 0.25)',
-      'rgba(220, 202, 168, 0.32)',
-      0.8
-    );
+    // 4. OpenStreetMap Alley & Stepped Lane Network (Clean Streets Plan)
+    const zoomFactor = THREE.MathUtils.clamp(220 / this.worldHalfSpan, 0.45, 2.2);
+    if (this.plan?.osmStreets) {
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (const st of this.plan.osmStreets) {
+        if (!this._tracePolyline(ctx, st.pts)) continue;
+        if (st.tier === 'secondary') {
+          ctx.strokeStyle = 'rgba(210, 198, 174, 0.48)';
+          ctx.lineWidth = 1.9 * dpr * zoomFactor;
+        } else if (st.tier === 'steps') {
+          ctx.strokeStyle = 'rgba(195, 178, 148, 0.36)';
+          ctx.lineWidth = 1.2 * dpr * zoomFactor;
+        } else {
+          ctx.strokeStyle = 'rgba(168, 182, 202, 0.30)';
+          ctx.lineWidth = 1.1 * dpr * zoomFactor;
+        }
+        ctx.stroke();
+      }
+    }
 
-    this._drawShapeList(
-      ctx,
-      this.footprints.buildings,
-      'rgba(218, 192, 145, 0.42)',
-      'rgba(245, 222, 178, 0.65)',
-      1.0
-    );
+    // 5. Curated Named Primary & Secondary Thoroughfares (Double-Edged Street Casing)
+    if (this.plan?.curatedStreets) {
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      // Pass A: Dark street casing
+      for (const st of this.plan.curatedStreets) {
+        if (!this._tracePolyline(ctx, st.pts)) continue;
+        const isPrimary = st.tier === 'primary';
+        ctx.strokeStyle = 'rgba(10, 14, 20, 0.85)';
+        ctx.lineWidth = (isPrimary ? 4.4 : 3.1) * dpr * Math.max(0.65, zoomFactor * 0.85);
+        ctx.stroke();
+      }
+      // Pass B: Warm parchment/gold street core
+      for (const st of this.plan.curatedStreets) {
+        if (!this._tracePolyline(ctx, st.pts)) continue;
+        const isPrimary = st.tier === 'primary';
+        ctx.strokeStyle = isPrimary ? '#e8cf9c' : '#b8c4d4';
+        ctx.lineWidth = (isPrimary ? 2.5 : 1.65) * dpr * Math.max(0.65, zoomFactor * 0.85);
+        ctx.stroke();
+      }
+    }
 
-    this._drawShapeList(
-      ctx,
-      this.footprints.walls,
-      'rgba(235, 185, 105, 0.68)',
-      'rgba(255, 224, 156, 0.9)',
-      1.2
-    );
+    // 6. Clean Key Monument Outlines (Only the 13 iconic monuments, zero building-mesh blobs)
+    if (this.plan?.landmarks) {
+      for (const lm of this.plan.landmarks) {
+        this._tracePolygon(ctx, lm.poly);
+        ctx.fillStyle = 'rgba(243, 200, 120, 0.24)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 224, 156, 0.78)';
+        ctx.lineWidth = 1.15 * dpr;
+        ctx.stroke();
+      }
+    }
 
-    // Draw place markers
-    this.places.forEach((place, idx) => {
+    // 7. Bold 16th-Century Ottoman Old City Wall Perimeter
+    if (this.plan?.cityWall) {
+      this._tracePolygon(ctx, this.plan.cityWall);
+      ctx.strokeStyle = 'rgba(12, 15, 22, 0.95)';
+      ctx.lineWidth = 4.2 * dpr;
+      ctx.stroke();
+      ctx.strokeStyle = '#eeb962';
+      ctx.lineWidth = 2.2 * dpr;
+      ctx.stroke();
+    }
+
+    // 8. Quarter Labels (when zoomed out or mid-zoom)
+    if (this.plan?.quarters && this.worldHalfSpan >= 140) {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const qFontPx = Math.round((this.worldHalfSpan > 340 ? 8.5 : 9.5) * dpr);
+      ctx.font = `700 ${qFontPx}px Inter, sans-serif`;
+      for (const q of this.plan.quarters) {
+        const { cx, cy } = this._enuToCanvas(q.x, q.y);
+        if (cx < 20 || cx > w - 20 || cy < 16 || cy > h - 16) continue;
+        ctx.fillStyle = 'rgba(10, 14, 20, 0.78)';
+        ctx.fillText(q.name, cx + 1, cy + 1);
+        ctx.fillStyle = 'rgba(235, 226, 208, 0.55)';
+        ctx.fillText(q.name, cx, cy);
+      }
+    }
+
+    // 9. Street Name Labels (when zoomed in <= 280m half-span)
+    if (this.plan?.curatedStreets && this.worldHalfSpan <= 280) {
+      ctx.font = `600 ${Math.round(8.2 * dpr)}px Inter, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const placedBoxes = [];
+
+      for (const st of this.plan.curatedStreets) {
+        if (!st.name || st.pts.length < 2) continue;
+        if (this.worldHalfSpan > 175 && st.tier !== 'primary') continue;
+        const midIdx = Math.floor(st.pts.length / 2);
+        const p0 = st.pts[Math.max(0, midIdx - 1)];
+        const p1 = st.pts[midIdx];
+        const mx = 0.5 * (p0[0] + p1[0]);
+        const my = 0.5 * (p0[1] + p1[1]);
+        const { cx, cy } = this._enuToCanvas(mx, my);
+        if (cx < 32 || cx > w - 32 || cy < 22 || cy > h - 22) continue;
+
+        const shortLabel = st.name.split('(')[0].split('/')[0].trim();
+        const boxW = shortLabel.length * 4.8 * dpr;
+        const boxH = 11 * dpr;
+        const overlaps = placedBoxes.some(
+          (b) => Math.abs(b.x - cx) < (b.w + boxW) * 0.55 && Math.abs(b.y - cy) < (b.h + boxH) * 0.85
+        );
+        if (overlaps) continue;
+        placedBoxes.push({ x: cx, y: cy, w: boxW, h: boxH });
+
+        ctx.lineWidth = 2.6 * dpr;
+        ctx.strokeStyle = 'rgba(12, 16, 24, 0.92)';
+        ctx.strokeText(shortLabel, cx, cy);
+        ctx.fillStyle = st.tier === 'primary' ? '#ffe5ad' : '#d8e2f0';
+        ctx.fillText(shortLabel, cx, cy);
+      }
+    }
+
+    // 10. 8 Named Gate Badges along the City Wall
+    if (this.plan?.gates) {
+      const showGateNames = this.worldHalfSpan >= 220;
+      ctx.font = `700 ${Math.round(7.8 * dpr)}px Inter, sans-serif`;
+      ctx.textAlign = 'center';
+      for (const g of this.plan.gates) {
+        const { cx, cy } = this._enuToCanvas(g.x, g.y);
+        if (cx < -10 || cx > w + 10 || cy < -10 || cy > h + 10) continue;
+        const sz = 3.6 * dpr;
+        ctx.fillStyle = '#141a24';
+        ctx.strokeStyle = '#f5c76b';
+        ctx.lineWidth = 1.5 * dpr;
+        ctx.beginPath();
+        ctx.rect(cx - sz, cy - sz, sz * 2, sz * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        if (showGateNames) {
+          const ly = cy - 7.5 * dpr;
+          ctx.lineWidth = 2.4 * dpr;
+          ctx.strokeStyle = 'rgba(10, 13, 19, 0.92)';
+          ctx.strokeText(g.name, cx, ly);
+          ctx.fillStyle = '#f7d488';
+          ctx.fillText(g.name, cx, ly);
+        }
+      }
+    }
+
+    // 11. Interactive POI Markers
+    this.places.forEach((place) => {
       const pxENU = Number(place.x ?? place.camera?.x ?? 0);
       const pyENU = Number(place.y ?? place.camera?.y ?? 0);
       const { cx, cy } = this._enuToCanvas(pxENU, pyENU);
@@ -283,31 +379,36 @@ export class Minimap {
       const isActive = place.id === activePlaceId;
 
       ctx.beginPath();
-      ctx.arc(cx, cy, isActive ? 6.5 : 4.8, 0, Math.PI * 2);
-      ctx.fillStyle = isActive ? '#ffe2a6' : 'rgba(30, 36, 48, 0.9)';
+      ctx.arc(cx, cy, (isActive ? 5.5 : 3.6) * dpr, 0, Math.PI * 2);
+      ctx.fillStyle = isActive ? '#ffe2a6' : '#243044';
       ctx.fill();
-      ctx.lineWidth = isActive ? 2 : 1.3;
+      ctx.lineWidth = (isActive ? 1.8 : 1.2) * dpr;
       ctx.strokeStyle = isActive ? '#ffffff' : '#f3c878';
       ctx.stroke();
 
-      const label = idx < 9 ? String(idx + 1) : idx === 9 ? '0' : '•';
-      ctx.fillStyle = isActive ? '#141820' : '#f7f3eb';
-      ctx.font = 'bold 8px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(label, cx, cy + 0.5);
+      if (isActive) {
+        const shortName = place.shortName || place.name.split('—')[0].split('(')[0].trim();
+        ctx.font = `700 ${Math.round(8.5 * dpr)}px Inter, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.lineWidth = 2.8 * dpr;
+        ctx.strokeStyle = 'rgba(10, 14, 20, 0.95)';
+        ctx.strokeText(shortName, cx, cy - 7 * dpr);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(shortName, cx, cy - 7 * dpr);
+      }
     });
 
-    // Draw Player Position + FOV Cone
+    // 12. Player Position + Directional FOV Cone
     if (playerPose) {
       const { cx, cy } = this._enuToCanvas(playerPose.x, playerPose.y);
       const hdgRad = ((playerPose.heading - 90) * Math.PI) / 180;
       const halfFov = ((fovDeg * 0.5) * Math.PI) / 180;
-      const coneLen = 32;
+      const coneLen = 30 * dpr;
 
-      const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, coneLen);
-      grad.addColorStop(0, 'rgba(96, 215, 255, 0.55)');
-      grad.addColorStop(1, 'rgba(96, 215, 255, 0.0)');
+      const grad = ctx.createRadialGradient(cx, cy, 2 * dpr, cx, cy, coneLen);
+      grad.addColorStop(0, 'rgba(74, 212, 255, 0.58)');
+      grad.addColorStop(1, 'rgba(74, 212, 255, 0.0)');
 
       ctx.beginPath();
       ctx.moveTo(cx, cy);
@@ -317,24 +418,29 @@ export class Minimap {
       ctx.fill();
 
       ctx.beginPath();
-      ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = '#4ad4ff';
+      ctx.arc(cx, cy, 4.4 * dpr, 0, Math.PI * 2);
+      ctx.fillStyle = '#38bdf8';
       ctx.fill();
-      ctx.lineWidth = 1.8;
+      ctx.lineWidth = 1.8 * dpr;
       ctx.strokeStyle = '#ffffff';
       ctx.stroke();
     }
 
-    // North badge & zoom span
-    ctx.fillStyle = 'rgba(243, 200, 120, 0.85)';
-    ctx.font = 'bold 10px sans-serif';
+    // 13. Compass Badge & Scale Bar Footer
+    ctx.fillStyle = 'rgba(14, 19, 27, 0.82)';
+    ctx.fillRect(0, h - 18 * dpr, w, 18 * dpr);
+
+    ctx.fillStyle = 'rgba(243, 200, 120, 0.92)';
+    ctx.font = `700 ${Math.round(9.5 * dpr)}px Inter, sans-serif`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
-    ctx.fillText('N ▲', w - 6, 6);
+    ctx.fillText('N ▲', w - 7 * dpr, 6 * dpr);
 
-    ctx.fillStyle = 'rgba(220, 210, 190, 0.65)';
-    ctx.font = '9px monospace';
+    ctx.fillStyle = 'rgba(226, 218, 202, 0.78)';
+    ctx.font = `${Math.round(8.5 * dpr)}px monospace`;
     ctx.textAlign = 'left';
-    ctx.fillText(`±${Math.round(this.worldHalfSpan)}m (scroll zoom)`, 6, h - 14);
+    ctx.textBaseline = 'middle';
+    const modeLabel = this.worldHalfSpan > 360 ? 'Full Old City Plan' : `Local Streets (±${Math.round(this.worldHalfSpan)}m)`;
+    ctx.fillText(`${modeLabel} · Scroll Zoom`, 6 * dpr, h - 9 * dpr);
   }
 }
