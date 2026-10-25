@@ -90,14 +90,41 @@ AWNING_MATS: List[str] = [
     "mat_awning_green",
 ]
 
-# Active walkable player/camera corridors for 3-Tier Architectural LOD calculation
+# Active walkable player/camera corridors across all 8 regions of the Old City for 3-Tier Architectural LOD
+_CURATED_STREET_POLYLINES: List[List[Vec2]] = [
+    [(-95.0, 14.0), (-42.0, 6.0), (-16.0, 2.5), (0.0, 2.0), (22.0, -2.0), (75.0, 2.0)],  # Jaffa Gate & Omar Sq
+    [(4.0, -4.0), (10.0, -85.0), (10.0, -210.0)],  # 1898 Breach & Western Citadel Moat Road
+    [(75.0, 2.0), (155.0, 2.0), (235.0, 8.0), (313.0, 14.0)],  # David St (Suq el-Bazar)
+    [(313.0, 14.0), (385.0, 24.0), (455.0, 35.0), (555.0, 35.0), (662.0, 35.0)],  # Street of the Chain
+    [(254.0, 545.0), (275.0, 440.0), (292.0, 330.0), (306.0, 210.0), (313.0, 108.0), (313.0, 14.0)],  # Khan el-Zeit
+    [(313.0, 108.0), (313.0, 14.0), (308.0, -75.0), (308.0, -185.0), (308.0, -265.0)],  # Triple Souq & Roman Cardo
+    [(262.0, 540.0), (345.0, 465.0), (430.0, 412.0), (468.0, 310.0), (512.0, 195.0), (555.0, 85.0), (595.0, 12.0)],  # El-Wad (HaGai St)
+    [(875.0, 467.0), (812.0, 528.0), (685.0, 485.0), (565.0, 428.0), (478.0, 413.0), (430.0, 412.0), (395.0, 335.0), (296.0, 255.0), (235.0, 185.0), (197.0, 158.0)],  # Via Dolorosa
+    [(75.0, 12.0), (92.0, 95.0), (112.0, 175.0), (132.0, 255.0), (148.0, 315.0)],  # Christian Quarter Rd
+    [(24.0, 6.0), (24.0, 65.0), (8.0, 145.0), (-45.0, 215.0), (-138.0, 294.0)],  # Latin Patriarchate Rd & New Gate
+    [(8.0, 145.0), (65.0, 155.0), (112.0, 175.0), (168.0, 175.0)],  # Greek Patriarchate St
+    [(-138.0, 294.0), (-55.0, 285.0), (35.0, 285.0), (132.0, 255.0)],  # St. Francis St
+    [(168.0, 124.0), (222.0, 124.0), (268.0, 124.0), (306.0, 124.0)],  # Muristan (Suq Aftimos)
+    [(197.0, 124.0), (197.0, 158.0), (235.0, 185.0)],  # St. Helena Rd & Holy Sepulchre Parvis
+    [(58.0, -4.0), (56.0, -95.0), (54.0, -210.0), (58.0, -325.0), (125.0, -385.0), (186.0, -410.0)],  # Armenian Patriarchate Rd & Zion Gate
+    [(54.0, -210.0), (132.0, -242.0), (215.0, -235.0), (308.0, -225.0)],  # St. James St
+    [(185.0, -85.0), (185.0, -175.0), (185.0, -285.0), (186.0, -410.0)],  # Ararat St
+    [(346.0, -45.0), (346.0, -110.0), (348.0, -195.0), (355.0, -285.0), (315.0, -355.0)],  # Jewish Quarter Rd
+    [(308.0, -145.0), (365.0, -145.0), (435.0, -155.0), (495.0, -155.0), (565.0, -95.0)],  # Tiferet Yisrael & Western Wall Approach
+    [(445.0, -75.0), (455.0, -155.0), (448.0, -245.0), (435.0, -310.0)],  # Misgav Ladach St
+    [(435.0, -310.0), (525.0, -240.0), (612.0, -200.0), (615.0, -95.0), (615.0, -25.0)],  # Batei Mahaseh & Dung Gate Rd
+    [(512.0, 145.0), (585.0, 145.0), (668.0, 145.0)],  # Suq al-Qattanin (Cotton Market)
+    [(306.0, 185.0), (410.0, 185.0), (512.0, 195.0)],  # Aqabat al-Khalidiya
+    [(295.0, 295.0), (390.0, 295.0), (468.0, 310.0)],  # Aqabat al-Saraya
+    [(485.0, 265.0), (585.0, 265.0), (668.0, 265.0)],  # Tariq Bab al-Nazir
+    [(568.0, 702.0), (555.0, 585.0), (545.0, 485.0), (565.0, 428.0)],  # Al-Qadisiya / Herod's Gate Rd
+    [(568.0, 650.0), (685.0, 625.0), (745.0, 545.0), (745.0, 365.0)],  # Bab Hutta Rd
+]
+
 WALKABLE_CORRIDORS: List[Tuple[Vec2, Vec2]] = [
-    ((-55.0, 4.0), (15.0, 2.0)),    # West Plaza & Jaffa Gate
-    ((4.0, -4.0), (12.0, -70.0)),   # 1898 Breach & Western Citadel Moat Road
-    ((12.0, -16.0), (78.0, 12.0)),  # Omar Ibn El-Khattab Square
-    ((58.0, -2.0), (60.0, -36.0)),  # Armenian Patriarchate Road
-    ((24.5, 8.0), (24.5, 56.0)),    # Latin Patriarchate Road
-    ((75.0, 2.0), (155.0, 2.0)),    # David Street Souq
+    (poly[k], poly[k + 1])
+    for poly in _CURATED_STREET_POLYLINES
+    for k in range(len(poly) - 1)
 ]
 
 
@@ -199,30 +226,30 @@ def is_bay_clearance_valid(
 ) -> bool:
     """
     Tests a 2D clearance grid in front of a bay `(bx + nx*d + tx*s, by + ny*d + ty*s)` for
-    `d in (0.15, 0.55, 1.15, 1.85)` and `s in (-half_w, 0.0, +half_w)` against all building
-    polygons and all non-collinear wall segments in `SCENE_BUILDING_RINGS`.
-    Returns False if any test point is inside another building polygon or within `1.40m` of
-    any non-collinear wall segment.
+    `d in (0.18, 0.55)` and `s in (-half_w * 0.7, 0.0, +half_w * 0.7)` against all building
+    polygons and face-to-face abutting walls in `SCENE_BUILDING_RINGS`.
+    Allows narrow Jerusalem alleys (>= 1.4m wide) and adjacent row houses sharing party walls!
     """
-    sample_ds = (0.15, 0.55, 1.15, 1.85)
-    sample_ss = (-half_w, 0.0, half_w)
+    sample_ds = (0.18, 0.55)
+    sample_ss = (-half_w * 0.70, 0.0, half_w * 0.70)
 
     for other_id, poly in SCENE_BUILDING_RINGS:
         # Fast AABB reject
         xs = [p[0] for p in poly]
         ys = [p[1] for p in poly]
-        if bx + 3.5 < min(xs) or bx - 3.5 > max(xs) or by + 3.5 < min(ys) or by - 3.5 > max(ys):
+        if bx + 2.2 < min(xs) or bx - 2.2 > max(xs) or by + 2.2 < min(ys) or by - 2.2 > max(ys):
             continue
 
-        # 1. Check if any sample point in front of the bay is inside `poly`
-        for d in sample_ds:
-            for s in sample_ss:
-                qx = bx + nx * d + tx * s
-                qy = by + ny * d + ty * s
-                if _point_in_poly_2d(qx, qy, poly):
-                    return False
+        # 1. Check if any sample point in front of the bay is inside another building polygon
+        if other_id != building_id:
+            for d in sample_ds:
+                for s in sample_ss:
+                    qx = bx + nx * d + tx * s
+                    qy = by + ny * d + ty * s
+                    if _point_in_poly_2d(qx, qy, poly):
+                        return False
 
-        # 2. Check distance to non-collinear / other-building wall segments
+        # 2. Check distance to non-collinear self-walls or face-to-face party walls
         n_v = len(poly)
         for j in range(n_v):
             if other_id == building_id and j == edge_idx:
@@ -234,23 +261,20 @@ def is_bay_clearance_valid(
             if el < 0.2:
                 continue
             etx, ety = edx / el, edy / el
-            is_collinear_same_bldg = (other_id == building_id) and (abs(tx * etx + ty * ety) > 0.88)
-            if is_collinear_same_bldg:
-                continue
-
-            for d in sample_ds:
-                for s in sample_ss:
-                    qx = bx + nx * d + tx * s
-                    qy = by + ny * d + ty * s
-                    if _point_to_segment_dist(qx, qy, a[0], a[1], b[0], b[1]) < 1.40:
+            if other_id == building_id:
+                if abs(tx * etx + ty * ety) > 0.85:
+                    continue
+                for d in sample_ds:
+                    qx = bx + nx * d
+                    qy = by + ny * d
+                    if _point_to_segment_dist(qx, qy, a[0], a[1], b[0], b[1]) < 0.65:
                         return False
-
-            if other_id != building_id:
-                for s in sample_ss:
-                    wx = bx + tx * s
-                    wy = by + ty * s
-                    if _point_to_segment_dist(wx, wy, a[0], a[1], b[0], b[1]) < 1.40:
-                        return False
+            else:
+                # Only reject if another building's wall is directly face-to-face in front of this bay (< 0.85m)
+                qx = bx + nx * 0.42
+                qy = by + ny * 0.42
+                if _point_to_segment_dist(qx, qy, a[0], a[1], b[0], b[1]) < 0.48:
+                    return False
 
     return True
 
@@ -1002,8 +1026,8 @@ def _build_lod1_wall(
     """
     Builds a medium-detail LOD 1 facade wall (`22m < corridor_dist <= 55m` or rear walls of LOD 0):
     - Ground-floor stone wall quad + arched shopfront/door polygon + 3-segment stone arch strip
-    - Enforces >= 0.68m corner margin so arches/frames never clip into adjacent perpendicular walls!
-    - Upper-floor stone wall quad + simple window quads (`window_glass` / `shutter_louvre` in a 1-quad frame)
+    - Mid-facade horizontal stone string course between ground and upper floors
+    - Upper-floor stone wall quad + stone-framed windows with projecting sills and open wooden louvred shutters
     - Projecting cornice strip + roof parapet
     """
     dx = p1[0] - p0[0]
@@ -1029,101 +1053,155 @@ def _build_lod1_wall(
         expected_normal=(nx, ny, 0.0),
     )
 
-    num_bays = max(1, int(round(edge_len / 4.2)))
+    # Mid-facade horizontal stone string course between floors
+    if edge_len >= 2.0 and levels >= 2:
+        collector.add_oriented_box(
+            "Buildings_Details",
+            trim_stone_mat,
+            p0,
+            p1,
+            base_z + ground_h - 0.06,
+            base_z + ground_h + 0.08,
+            0.0,
+            0.09,
+            normal_xy,
+            cap_ends=False,
+        )
+
+    num_bays = max(1, int(round(edge_len / 4.0)))
     bay_w = edge_len / num_bays
     shutter_keys = ["shutter_graffiti_1", "shutter_graffiti_2", "shutter_rusty_green", "steel_door_tagged"]
-    corner_margin = 1.50
+    corner_margin = 0.85
 
     for b_idx in range(num_bays):
-        if edge_len < 4.8 or bay_w < 2.4:
+        if edge_len < 3.4 or bay_w < 2.2:
             continue
         mid_u = (b_idx + 0.5) * bay_w
-        open_hw = min(0.88, bay_w * 0.26)
-        if (mid_u - open_hw - 0.25) < corner_margin or (mid_u + open_hw + 0.25) > (edge_len - corner_margin):
+        open_hw = min(0.86, bay_w * 0.26)
+        if (mid_u - open_hw - 0.15) < corner_margin or (mid_u + open_hw + 0.15) > (edge_len - corner_margin):
             continue
 
         mx = p0[0] + tx * mid_u
         my = p0[1] + ty * mid_u
-        if not is_bay_clearance_valid(mx, my, tx, ty, nx, ny, building_id, edge_idx=edge_idx, half_w=open_hw + 0.20):
-            continue
+        bay_ok = is_bay_clearance_valid(mx, my, tx, ty, nx, ny, building_id, edge_idx=edge_idx, half_w=open_hw + 0.12)
 
-        # Ground floor arched opening panel (follows exact 3-segment arch curve so zero corners stick out!)
-        open_h = 2.45
-        arch_spring_z = base_z + open_h - 0.42
-        arch_h = 0.42
-        d_g = 0.032
-        if (building_id + edge_idx + b_idx) % 2 == 0:
-            sh_k = shutter_keys[(building_id + edge_idx + b_idx) % len(shutter_keys)]
-            open_mat = "mat_steel_shutters"
-            open_uv = STEEL_SHUTTER_UV[sh_k]
-        else:
-            open_mat = "mat_wood_doors"
-            open_uv = WOOD_DOOR_UV["door_wood"]
+        if bay_ok:
+            # Ground floor arched opening panel (follows exact 3-segment arch curve so zero corners stick out!)
+            open_h = 2.45
+            arch_spring_z = base_z + open_h - 0.42
+            arch_h = 0.42
+            d_g = 0.032
+            h_mode = (building_id + edge_idx + b_idx) % 4
+            if h_mode == 0:
+                sh_k = shutter_keys[(building_id + edge_idx + b_idx) % len(shutter_keys)]
+                open_mat = "mat_steel_shutters"
+                open_uv = STEEL_SHUTTER_UV[sh_k]
+            elif h_mode == 1:
+                open_mat = "mat_wood_doors"
+                open_uv = WOOD_DOOR_UV["souq_open"]
+            else:
+                open_mat = "mat_wood_doors"
+                open_uv = WOOD_DOOR_UV["door_wood"]
 
-        add_arched_opening_panel(
-            collector,
-            "Buildings_Openings",
-            open_mat,
-            (mx, my),
-            base_z + 0.05,
-            arch_spring_z,
-            arch_h,
-            open_hw * 2.0,
-            d_g,
-            (tx, ty),
-            normal_xy,
-            uv_rect=open_uv,
-            num_voussoirs=3,
-            add_wall_spandrel=False,
-        )
+            add_arched_opening_panel(
+                collector,
+                "Buildings_Openings",
+                open_mat,
+                (mx, my),
+                base_z + 0.05,
+                arch_spring_z,
+                arch_h,
+                open_hw * 2.0,
+                d_g,
+                (tx, ty),
+                normal_xy,
+                uv_rect=open_uv,
+                num_voussoirs=3,
+                add_wall_spandrel=False,
+            )
 
-        add_arch_voussoirs(
-            collector,
-            "Buildings_Details",
-            trim_stone_mat,
-            (mx, my, arch_spring_z),
-            (tx, ty),
-            normal_xy,
-            span_w=open_hw * 2.0,
-            arch_h=arch_h,
-            ring_thickness=0.22,
-            offset_n0=0.015,
-            offset_n1=0.075,
-            num_voussoirs=3,
-            keystone_boost=0.04,
-        )
+            if corridor_distance(mx, my) <= 28.0:
+                add_arch_voussoirs(
+                    collector,
+                    "Buildings_Details",
+                    trim_stone_mat,
+                    (mx, my, arch_spring_z),
+                    (tx, ty),
+                    normal_xy,
+                    span_w=open_hw * 2.0,
+                    arch_h=arch_h,
+                    ring_thickness=0.22,
+                    offset_n0=0.015,
+                    offset_n1=0.075,
+                    num_voussoirs=3,
+                    keystone_boost=0.04,
+                )
+            if h_mode == 1 and b_idx % 2 == 0 and corridor_distance(mx, my) <= 18.0:
+                awning_mats = ("mat_awning_striped", "mat_awning_red", "mat_awning_green")
+                build_shop_awning(
+                    collector,
+                    (mx, my, arch_spring_z + arch_h + 0.28),
+                    (tx, ty),
+                    normal_xy,
+                    width=open_hw * 2.0 + 0.18,
+                    projection=0.88,
+                    drop=0.34,
+                    mat_name=awning_mats[(building_id + edge_idx + b_idx) % len(awning_mats)],
+                )
 
-        # Upper floor window quads (1 stone frame quad at +2.5cm + 1 window/shutter quad at +4.8cm)
+        # Upper floor window quads (stone surround + projecting stone sill + glass pane + open wooden louvred shutters)
         win_hw = 0.54
-        win_h = 1.55
+        win_h = 1.52
+        fw_hw = win_hw + 0.15
         for lvl in range(1, levels):
             fl_z0 = base_z + ground_h + (lvl - 1) * upper_floor_h
             sill_z = fl_z0 + 0.75
             head_z = sill_z + win_h
-            d_f = 0.025
-            d_w = 0.048
-            fw_hw = win_hw + 0.12
-            f0 = (mx - rx * fw_hw + nx * d_f, my - ry * fw_hw + ny * d_f, sill_z - 0.08)
-            f1 = (mx + rx * fw_hw + nx * d_f, my + ry * fw_hw + ny * d_f, sill_z - 0.08)
-            f2 = (mx + rx * fw_hw + nx * d_f, my + ry * fw_hw + ny * d_f, head_z + 0.12)
-            f3 = (mx - rx * fw_hw + nx * d_f, my - ry * fw_hw + ny * d_f, head_z + 0.12)
-            collector.add_quad("Buildings_Details", trim_stone_mat, f0, f1, f2, f3, expected_normal=(nx, ny, 0.0))
+            d_f = 0.032
+            d_w = 0.052
+            d_s = 0.066
+            f0 = (mx - rx * fw_hw + nx * d_f, my - ry * fw_hw + ny * d_f, sill_z - 0.10)
+            f1 = (mx + rx * fw_hw + nx * d_f, my + ry * fw_hw + ny * d_f, sill_z - 0.10)
+            f2 = (mx + rx * fw_hw + nx * d_f, my + ry * fw_hw + ny * d_f, head_z + 0.16)
+            f3 = (mx - rx * fw_hw + nx * d_f, my - ry * fw_hw + ny * d_f, head_z + 0.16)
+            collector.add_quad("Buildings_Details", "mat_stone_mizzi", f0, f1, f2, f3, expected_normal=(nx, ny, 0.0))
+
+            collector.add_oriented_box(
+                "Buildings_Details",
+                "mat_stone_boss",
+                (mx - rx * (fw_hw + 0.05), my - ry * (fw_hw + 0.05)),
+                (mx + rx * (fw_hw + 0.05), my + ry * (fw_hw + 0.05)),
+                sill_z - 0.12,
+                sill_z + 0.02,
+                0.0,
+                0.15,
+                normal_xy,
+                cap_ends=False,
+            )
 
             w0 = (mx - rx * win_hw + nx * d_w, my - ry * win_hw + ny * d_w, sill_z)
             w1 = (mx + rx * win_hw + nx * d_w, my + ry * win_hw + ny * d_w, sill_z)
             w2 = (mx + rx * win_hw + nx * d_w, my + ry * win_hw + ny * d_w, head_z)
             w3 = (mx - rx * win_hw + nx * d_w, my - ry * win_hw + ny * d_w, head_z)
-            uv_w = WOOD_DOOR_UV["shutter_louvre"] if (b_idx + lvl) % 2 == 0 else WOOD_DOOR_UV["window_glass"]
-            collector.add_quad("Buildings_Openings", "mat_wood_doors", w0, w1, w2, w3, uv_rect=uv_w, expected_normal=(nx, ny, 0.0))
+            collector.add_quad("Buildings_Openings", "mat_wood_doors", w0, w1, w2, w3, uv_rect=WOOD_DOOR_UV["window_glass"], expected_normal=(nx, ny, 0.0))
 
-    # Projecting roof cornice strip (2 faces)
+            for sh_sign in (-1.0, 1.0):
+                sh_c = sh_sign * (win_hw + 0.19)
+                sh_hw = 0.17
+                s0 = (mx + rx * (sh_c - sh_hw) + nx * d_s, my + ry * (sh_c - sh_hw) + ny * d_s, sill_z + 0.02)
+                s1 = (mx + rx * (sh_c + sh_hw) + nx * d_s, my + ry * (sh_c + sh_hw) + ny * d_s, sill_z + 0.02)
+                s2 = (mx + rx * (sh_c + sh_hw) + nx * d_s, my + ry * (sh_c + sh_hw) + ny * d_s, head_z - 0.02)
+                s3 = (mx + rx * (sh_c - sh_hw) + nx * d_s, my + ry * (sh_c - sh_hw) + ny * d_s, head_z - 0.02)
+                collector.add_quad("Buildings_Openings", "mat_wood_doors", s0, s1, s2, s3, uv_rect=WOOD_DOOR_UV["shutter_louvre"], expected_normal=(nx, ny, 0.0))
+
+    # Projecting roof cornice strip
     collector.add_oriented_box(
         "Buildings_Details",
         trim_stone_mat,
         p0,
         p1,
-        roof_z,
-        roof_z + 0.18,
+        roof_z + 0.35,
+        roof_z + 0.58,
         0.0,
         0.16,
         normal_xy,
@@ -1144,13 +1222,16 @@ def _build_lod2_building(
     has_dome: bool = False,
 ) -> None:
     """
-    Builds a low-poly LOD 2 background OSM stone massing prism (`55m < corridor_dist <= 95m`):
-    - Split at `base_z + 2.2m` so vertex color `COLOR_0` rising-damp dirt gradient bakes cleanly
-    - At most 1 simple window quad per floor on walls longer than 5.0m
-    - Total ~20–36 faces per entire building instead of 3,500!
+    Builds a complete multi-bay Jerusalem Old City stone building (`corridor_dist > 55m`):
+    - Split at `base_z + ground_h` with projecting stone belt course and roof cornice
+    - Full multi-bay rhythm (`num_bays = max(1, int(round(edge_len / 4.2)))`) across every wall >= 3.6m
+    - Arched ground-floor doorways/shopfronts with 3D stone voussoir arch hoods
+    - Upper-floor stone-framed windows with projecting stone sills and open wooden louvred shutters
+    - Traditional Jerusalem stone domes on roofs
     """
     roof_z = base_z + ground_h + (levels - 1) * upper_floor_h
     n_edges = len(pts)
+    shutter_keys = ["shutter_graffiti_1", "shutter_graffiti_2", "shutter_rusty_green", "steel_door_tagged"]
 
     for i in range(n_edges):
         p0 = pts[i]
@@ -1164,22 +1245,35 @@ def _build_lod2_building(
         nx, ny = ty, -tx
         rx, ry = -ny, nx
 
-        z_split = base_z + 2.2
+        z_split = base_z + ground_h
         collector.add_quad(
             "Buildings_Walls", ground_pier_mat,
-            (p0[0], p0[1], base_z - 1.0), (p1[0], p1[1], base_z - 1.0),
+            (p0[0], p0[1], base_z - 1.2), (p1[0], p1[1], base_z - 1.2),
             (p1[0], p1[1], z_split), (p0[0], p0[1], z_split),
             expected_normal=(nx, ny, 0.0),
         )
         collector.add_quad(
             "Buildings_Walls", upper_wall_mat,
             (p0[0], p0[1], z_split), (p1[0], p1[1], z_split),
-            (p1[0], p1[1], roof_z + 0.55), (p0[0], p0[1], roof_z + 0.55),
+            (p1[0], p1[1], roof_z + 0.60), (p0[0], p0[1], roof_z + 0.60),
             expected_normal=(nx, ny, 0.0),
         )
 
-        # Projecting stone roof cornice & mid-facade belt course on walls >= 2.2m
-        if edge_len >= 2.2:
+        # Projecting stone roof cornice & mid-facade belt course on walls >= 2.0m
+        if edge_len >= 2.0:
+            if levels >= 2:
+                collector.add_oriented_box(
+                    "Buildings_Details",
+                    "mat_stone_mizzi",
+                    p0,
+                    p1,
+                    z_split - 0.06,
+                    z_split + 0.08,
+                    0.0,
+                    0.09,
+                    (nx, ny),
+                    cap_ends=False,
+                )
             collector.add_oriented_box(
                 "Buildings_Details",
                 "mat_stone_mizzi",
@@ -1193,56 +1287,63 @@ def _build_lod2_building(
                 cap_ends=False,
             )
 
-        # Ground-floor framed wooden portal & upper-floor stone-framed shuttered windows on street-facing walls >= 4.2m
-        if edge_len >= 4.2:
-            n_wins = 2 if edge_len >= 8.6 else 1
+        # Full multi-bay ground-floor arched portals & upper-floor shuttered windows on walls >= 3.6m
+        if edge_len >= 3.6:
+            n_wins = max(1, int(round(edge_len / 4.2)))
+            bay_w = edge_len / n_wins
             for w_i in range(n_wins):
-                u_frac = (w_i + 1) / (n_wins + 1)
-                bx = p0[0] + (p1[0] - p0[0]) * u_frac
-                by = p0[1] + (p1[1] - p0[1]) * u_frac
+                mid_u = (w_i + 0.5) * bay_w
+                if mid_u < 0.90 or mid_u > (edge_len - 0.90):
+                    continue
+                bx = p0[0] + tx * mid_u
+                by = p0[1] + ty * mid_u
 
-                # Ground-floor framed Jerusalem timber doorway on primary street walls
-                if w_i == 0 and edge_len >= 4.6:
-                    df_x, df_y = bx + nx * 0.035, by + ny * 0.035
-                    dw_x, dw_y = bx + nx * 0.055, by + ny * 0.055
-                    d_hw = 0.68
-                    df_hw = d_hw + 0.18
-                    collector.add_quad(
-                        "Buildings_Details",
-                        "mat_stone_boss",
-                        (df_x - rx * df_hw, df_y - ry * df_hw, base_z),
-                        (df_x + rx * df_hw, df_y + ry * df_hw, base_z),
-                        (df_x + rx * df_hw, df_y + ry * df_hw, base_z + 2.48),
-                        (df_x - rx * df_hw, df_y - ry * df_hw, base_z + 2.48),
-                        expected_normal=(nx, ny, 0.0),
-                    )
-                    collector.add_quad(
+                # Ground-floor arched doorway / shopfront with 3D stone voussoirs
+                if w_i % 2 == 0 or n_wins == 1:
+                    open_hw = min(0.80, bay_w * 0.25)
+                    open_h = 2.40
+                    arch_spring_z = base_z + open_h - 0.40
+                    arch_h = 0.40
+                    if (building_id + i + w_i) % 3 == 0:
+                        sh_k = shutter_keys[(building_id + i + w_i) % len(shutter_keys)]
+                        open_mat = "mat_steel_shutters"
+                        open_uv = STEEL_SHUTTER_UV[sh_k]
+                    else:
+                        open_mat = "mat_wood_doors"
+                        open_uv = WOOD_DOOR_UV["door_wood"]
+
+                    add_arched_opening_panel(
+                        collector,
                         "Buildings_Openings",
-                        "mat_wood_doors",
-                        (dw_x - rx * d_hw, dw_y - ry * d_hw, base_z + 0.04),
-                        (dw_x + rx * d_hw, dw_y + ry * d_hw, base_z + 0.04),
-                        (dw_x + rx * d_hw, dw_y + ry * d_hw, base_z + 2.25),
-                        (dw_x - rx * d_hw, dw_y - ry * d_hw, base_z + 2.25),
-                        uv_rect=WOOD_DOOR_UV["door_wood"],
-                        expected_normal=(nx, ny, 0.0),
+                        open_mat,
+                        (bx, by),
+                        base_z + 0.04,
+                        arch_spring_z,
+                        arch_h,
+                        open_hw * 2.0,
+                        0.032,
+                        (tx, ty),
+                        (nx, ny),
+                        uv_rect=open_uv,
+                        num_voussoirs=3,
+                        add_wall_spandrel=False,
                     )
 
-                win_hw = 0.56
-                fw_hw = win_hw + 0.16
-                fx, fy = bx + nx * 0.035, by + ny * 0.035
-                mx, my = bx + nx * 0.055, by + ny * 0.055
-                sx_p, sy_p = bx + nx * 0.068, by + ny * 0.068
+                win_hw = 0.54
+                fw_hw = win_hw + 0.15
+                fx, fy = bx + nx * 0.032, by + ny * 0.032
+                mx, my = bx + nx * 0.052, by + ny * 0.052
+                sx_p, sy_p = bx + nx * 0.066, by + ny * 0.066
                 for lvl in range(1, levels):
                     sill_z = base_z + ground_h + (lvl - 1) * upper_floor_h + 0.75
                     head_z = sill_z + 1.48
-                    # Stone window frame & 3D projecting stone sill/lintel surround
                     collector.add_quad(
                         "Buildings_Details",
                         "mat_stone_mizzi",
-                        (fx - rx * fw_hw, fy - ry * fw_hw, sill_z - 0.12),
-                        (fx + rx * fw_hw, fy + ry * fw_hw, sill_z - 0.12),
-                        (fx + rx * fw_hw, fy + ry * fw_hw, head_z + 0.18),
-                        (fx - rx * fw_hw, fy - ry * fw_hw, head_z + 0.18),
+                        (fx - rx * fw_hw, fy - ry * fw_hw, sill_z - 0.10),
+                        (fx + rx * fw_hw, fy + ry * fw_hw, sill_z - 0.10),
+                        (fx + rx * fw_hw, fy + ry * fw_hw, head_z + 0.16),
+                        (fx - rx * fw_hw, fy - ry * fw_hw, head_z + 0.16),
                         expected_normal=(nx, ny, 0.0),
                     )
                     collector.add_oriented_box(
@@ -1250,36 +1351,35 @@ def _build_lod2_building(
                         "mat_stone_boss",
                         (bx - rx * (fw_hw + 0.05), by - ry * (fw_hw + 0.05)),
                         (bx + rx * (fw_hw + 0.05), by + ry * (fw_hw + 0.05)),
-                        sill_z - 0.14,
+                        sill_z - 0.12,
                         sill_z + 0.02,
                         0.0,
-                        0.16,
+                        0.15,
                         (nx, ny),
-                        cap_ends=True,
+                        cap_ends=False,
                     )
                     w0 = (mx - rx * win_hw, my - ry * win_hw, sill_z)
                     w1 = (mx + rx * win_hw, my + ry * win_hw, sill_z)
                     w2 = (mx + rx * win_hw, my + ry * win_hw, head_z)
                     w3 = (mx - rx * win_hw, my - ry * win_hw, head_z)
                     collector.add_quad("Buildings_Openings", "mat_wood_doors", w0, w1, w2, w3, uv_rect=WOOD_DOOR_UV["window_glass"], expected_normal=(nx, ny, 0.0))
-                    # Open painted wooden louvred shutters flanking EVERY upper window (zero plain black squares!)
                     for sh_sign in (-1.0, 1.0):
-                        sh_c = sh_sign * (win_hw + 0.20)
-                        sh_hw = 0.18
+                        sh_c = sh_sign * (win_hw + 0.19)
+                        sh_hw = 0.17
                         s0 = (sx_p + rx * (sh_c - sh_hw), sy_p + ry * (sh_c - sh_hw), sill_z + 0.02)
                         s1 = (sx_p + rx * (sh_c + sh_hw), sy_p + ry * (sh_c + sh_hw), sill_z + 0.02)
                         s2 = (sx_p + rx * (sh_c + sh_hw), sy_p + ry * (sh_c + sh_hw), head_z - 0.02)
                         s3 = (sx_p + rx * (sh_c - sh_hw), sy_p + ry * (sh_c - sh_hw), head_z - 0.02)
                         collector.add_quad("Buildings_Openings", "mat_wood_doors", s0, s1, s2, s3, uv_rect=WOOD_DOOR_UV["shutter_louvre"], expected_normal=(nx, ny, 0.0))
 
-    roof_pts = [(p[0], p[1], roof_z + 0.55) for p in pts]
+    roof_pts = [(p[0], p[1], roof_z + 0.60) for p in pts]
     collector.add_polygon_3d("Buildings_Walls", "mat_plaster", roof_pts, uv_scale=0.25)
 
     xs = [p[0] for p in pts]
     ys = [p[1] for p in pts]
     if has_dome or (building_id % 3 == 0 and (max(xs) - min(xs)) >= 5.5 and (max(ys) - min(ys)) >= 5.5):
         cx, cy = sum(xs) / len(xs), sum(ys) / len(ys)
-        collector.add_dome("Buildings_Details", "mat_stone_ashlar_aged", (cx, cy, roof_z + 0.50), radius=1.95, height=1.40, rings=4, segments=8)
+        collector.add_dome("Buildings_Details", "mat_stone_ashlar_aged", (cx, cy, roof_z + 0.55), radius=1.95, height=1.40, rings=4, segments=8)
 
 
 # ==============================================================================
@@ -1332,9 +1432,10 @@ def build_building_from_footprint(
     span_y = max(ys) - min(ys)
 
     corridor_dist = corridor_distance(cx, cy)
-    if is_hero or corridor_dist <= 22.0:
+    in_r01_core = (-45.0 <= cx <= 165.0 and -45.0 <= cy <= 65.0 and corridor_dist <= 18.0)
+    if is_hero or in_r01_core:
         lod_tier = 0
-    elif corridor_dist <= 55.0:
+    elif corridor_dist <= 65.0:
         lod_tier = 1
     else:
         lod_tier = 2

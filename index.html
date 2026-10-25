@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Old City Walker — Jaffa Gate (Bab al-Khalil), Jerusalem</title>
+  <title>Old City Walker — Jerusalem 3D Architectural Explorer</title>
   <style>
     :root {
-      --glass-bg: rgba(16, 18, 24, 0.76);
+      --glass-bg: rgba(16, 18, 24, 0.78);
       --glass-border: rgba(255, 238, 205, 0.22);
       --gold-accent: #f3c878;
       --gold-bright: #ffe2a6;
@@ -42,7 +42,8 @@
     }
 
     body.clean-mode #hud-root,
-    body.clean-mode #loading-overlay {
+    body.clean-mode #loading-overlay,
+    body.clean-mode #teleport-dialog {
       display: none !important;
     }
 
@@ -90,7 +91,7 @@
       position: absolute;
       top: 16px;
       left: 16px;
-      max-width: 390px;
+      max-width: 410px;
       background: var(--glass-bg);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
@@ -125,7 +126,7 @@
     }
 
     #hud-place-name {
-      font-size: 18px;
+      font-size: 17.5px;
       font-weight: 700;
       line-height: 1.25;
       color: #ffffff;
@@ -133,7 +134,7 @@
     }
 
     #hud-place-sub {
-      font-size: 12.5px;
+      font-size: 12px;
       color: var(--text-dim);
       line-height: 1.35;
       margin-bottom: 8px;
@@ -152,7 +153,8 @@
 
     .hud-actions-row {
       display: flex;
-      gap: 8px;
+      flex-wrap: wrap;
+      gap: 6px;
       margin-top: 8px;
     }
 
@@ -177,6 +179,13 @@
       background: rgba(243, 200, 120, 0.28);
       border-color: var(--gold-bright);
       color: var(--gold-bright);
+    }
+
+    .hud-btn-gold {
+      background: rgba(243, 200, 120, 0.22);
+      border-color: rgba(243, 200, 120, 0.55);
+      color: var(--gold-bright);
+      font-weight: 600;
     }
 
     /* Pointer Lock Prompt Pill */
@@ -217,12 +226,12 @@
       box-shadow: 0 0 8px var(--gold-accent);
     }
 
-    /* Top-right Minimap Panel */
+    /* Top-right Streets-Plan Minimap Panel */
     #minimap-panel {
       position: absolute;
       top: 16px;
       right: 16px;
-      width: 248px;
+      width: 268px;
       background: var(--glass-bg);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
@@ -251,20 +260,35 @@
       letter-spacing: 0.04em;
     }
 
+    .minimap-zoom-btn {
+      background: rgba(243, 200, 120, 0.14);
+      border: 1px solid rgba(243, 200, 120, 0.35);
+      color: var(--gold-bright);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .minimap-zoom-btn:hover {
+      background: rgba(243, 200, 120, 0.28);
+    }
+
     #minimap-canvas {
-      width: 230px;
-      height: 230px;
+      width: 250px;
+      height: 250px;
       display: block;
       border-radius: 8px;
-      background: #141820;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: #0e131b;
+      border: 1px solid rgba(255, 255, 255, 0.12);
       cursor: pointer;
     }
 
     /* Reference Photo Comparison Drawer */
     #photo-drawer {
       position: absolute;
-      top: 298px;
+      top: 318px;
       right: 16px;
       width: 360px;
       background: var(--glass-bg);
@@ -326,53 +350,52 @@
       margin-bottom: 8px;
     }
 
-    /* Bottom Teleport Bar */
-    #teleport-bar {
+    /* Compact Bottom Teleport Trigger Pill */
+    #teleport-trigger-bar {
       position: absolute;
-      bottom: 14px;
+      bottom: 16px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 6px;
-      max-width: 96vw;
+      align-items: center;
+      gap: 10px;
       background: var(--glass-bg);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border: 1px solid var(--glass-border);
-      border-radius: 12px;
-      padding: 7px 10px;
+      border-radius: 999px;
+      padding: 6px 14px;
       pointer-events: auto;
       box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
     }
 
-    .tp-btn {
+    #btn-open-teleport {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 238, 205, 0.18);
-      color: var(--text-main);
-      padding: 5px 10px;
-      border-radius: 8px;
-      font-size: 11.5px;
-      font-weight: 500;
+      gap: 8px;
+      background: rgba(243, 200, 120, 0.2);
+      border: 1px solid rgba(243, 200, 120, 0.5);
+      color: var(--gold-bright);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 600;
       cursor: pointer;
       transition: all 0.15s ease;
-      white-space: nowrap;
     }
 
-    .tp-btn:hover {
-      background: rgba(243, 200, 120, 0.2);
-      border-color: var(--gold-accent);
+    #btn-open-teleport:hover {
+      background: rgba(243, 200, 120, 0.32);
       transform: translateY(-1px);
     }
 
-    .tp-btn.active {
-      background: rgba(243, 200, 120, 0.28);
-      border-color: var(--gold-bright);
-      color: var(--gold-bright);
+    .tp-active-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      max-width: 260px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .tp-key {
@@ -383,7 +406,172 @@
       color: var(--gold-accent);
       padding: 1px 5px;
       border-radius: 4px;
-      border: 1px solid rgba(243, 200, 120, 0.3);
+      border: 1px solid rgba(243, 200, 120, 0.35);
+    }
+
+    /* Native Modal Dialog for Full Location Directory */
+    #teleport-dialog {
+      margin: auto;
+      width: min(860px, 92vw);
+      max-height: 82vh;
+      background: rgba(16, 20, 28, 0.95);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(243, 200, 120, 0.38);
+      border-radius: 16px;
+      color: var(--text-main);
+      padding: 0;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.75);
+      overflow: hidden;
+    }
+
+    #teleport-dialog[open] {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #teleport-dialog::backdrop {
+      background-color: rgba(6, 9, 14, 0.62);
+      backdrop-filter: blur(4px);
+    }
+
+    .tp-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(255, 238, 205, 0.14);
+      background: rgba(10, 13, 19, 0.55);
+    }
+
+    .tp-modal-title-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    #teleport-dialog-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--gold-bright);
+      letter-spacing: 0.03em;
+    }
+
+    .tp-modal-sub {
+      font-size: 11.5px;
+      color: var(--text-dim);
+    }
+
+    .tp-modal-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #teleport-search {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 238, 205, 0.25);
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: var(--text-main);
+      font-size: 12.5px;
+      width: 210px;
+      outline: none;
+      user-select: text;
+    }
+
+    #teleport-search:focus {
+      border-color: var(--gold-accent);
+      background: rgba(255, 255, 255, 0.11);
+    }
+
+    #btn-close-teleport {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 238, 205, 0.22);
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    #btn-close-teleport:hover {
+      background: rgba(243, 200, 120, 0.22);
+      border-color: var(--gold-accent);
+    }
+
+    #teleport-categories {
+      padding: 16px 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .tp-cat-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gold-accent);
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(243, 200, 120, 0.18);
+    }
+
+    .tp-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 8px;
+    }
+
+    .tp-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 3px;
+      text-align: left;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 238, 205, 0.15);
+      color: var(--text-main);
+      padding: 9px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.14s ease;
+    }
+
+    .tp-btn:hover {
+      background: rgba(243, 200, 120, 0.18);
+      border-color: var(--gold-accent);
+      transform: translateY(-1px);
+    }
+
+    .tp-btn.active {
+      background: rgba(243, 200, 120, 0.24);
+      border-color: var(--gold-bright);
+    }
+
+    .tp-btn-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      gap: 6px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .tp-btn-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
     /* Loading Overlay */
@@ -442,12 +630,12 @@
 
     <div id="pointer-prompt" title="Click to lock mouse for effortless FPS look">
       <span class="dot"></span>
-      <span id="pointer-prompt-text">Click anywhere for Mouse Look · WASD Move · Shift Sprint · Space Jump · F Fly · 1–0 Teleport</span>
+      <span id="pointer-prompt-text">Click for Mouse Look · WASD Move · Shift Sprint · F Fly · T Teleport · M Map</span>
     </div>
 
     <div id="place-card">
       <div class="card-eyebrow">
-        <span>Jaffa Gate · Bab al-Khalil</span>
+        <span>Old City of Jerusalem</span>
         <span id="hud-mode-badge">WALK</span>
       </div>
       <div id="hud-place-name">Jaffa Gate Plaza</div>
@@ -458,6 +646,7 @@
         <span id="hud-dist">0.0m</span>
       </div>
       <div class="hud-actions-row">
+        <button id="btn-teleport-toggle" class="hud-btn hud-btn-gold" type="button">Teleport [T]</button>
         <button id="btn-photo-toggle" class="hud-btn" type="button">Photo [P]</button>
         <button id="btn-map-toggle" class="hud-btn active" type="button">Map [M]</button>
         <button id="btn-ao-toggle" class="hud-btn active" type="button">SSAO [O]</button>
@@ -467,10 +656,10 @@
 
     <div id="minimap-panel">
       <div class="minimap-header">
-        <span>DISTRICT MAP</span>
-        <span>[M] Toggle · Click to Teleport</span>
+        <span>OLD CITY STREETS PLAN</span>
+        <button id="btn-minimap-zoom" class="minimap-zoom-btn" type="button">Full City</button>
       </div>
-      <canvas id="minimap-canvas" width="230" height="230"></canvas>
+      <canvas id="minimap-canvas" width="500" height="500"></canvas>
     </div>
 
     <div id="photo-drawer" class="hidden">
@@ -486,11 +675,32 @@
       <button id="btn-snap-photo" class="hud-btn" type="button" style="width:100%">Snap Camera to Photo Viewpoint</button>
     </div>
 
-    <div id="teleport-bar"></div>
+    <div id="teleport-trigger-bar">
+      <button id="btn-open-teleport" type="button">
+        <span>Teleport Locations</span>
+        <span class="tp-key">T</span>
+      </button>
+      <span id="tp-current-summary" class="tp-active-label">Jaffa Gate West Approach Plaza</span>
+    </div>
   </div>
 
+  <!-- Native Modal Dialog with declarative light-dismiss (closedby="any") -->
+  <dialog id="teleport-dialog" closedby="any" aria-labelledby="teleport-dialog-title">
+    <div class="tp-modal-header">
+      <div class="tp-modal-title-wrap">
+        <h2 id="teleport-dialog-title">Old City of Jerusalem — Teleport Directory</h2>
+        <div class="tp-modal-sub">Select any Gate, Holy Site, Souq, or Plaza (or press 1–0 for quick Jaffa Gate spots · Esc or click outside to close)</div>
+      </div>
+      <div class="tp-modal-controls">
+        <input id="teleport-search" type="search" placeholder="Filter locations…" autocomplete="off" />
+        <button id="btn-close-teleport" type="button">Close [Esc]</button>
+      </div>
+    </div>
+    <div id="teleport-categories"></div>
+  </dialog>
+
   <div id="loading-overlay">
-    <div class="loader-title">JERUSALEM · JAFFA GATE</div>
+    <div class="loader-title">OLD CITY OF JERUSALEM</div>
     <div class="loader-sub" id="loader-status">Loading 3D Old City architecture &amp; PBR materials…</div>
     <div class="loader-bar-bg">
       <div id="loader-bar-fill"></div>

@@ -259,17 +259,20 @@ def run_mesh_linter(mesh_objects: List[bpy.types.Object], report_path: Path) -> 
         m = len(recs)
         if m < 2:
             continue
+        # Sort by `plane_d` so we only compare faces within `plane_eps` (0.012m) — O(m log m) instead of O(m^2)!
+        recs.sort(key=lambda r: r["plane_d"])
         for i in range(m):
             ra = recs[i]
+            ra_pd = ra["plane_d"]
             for j in range(i + 1, m):
                 rb = recs[j]
+                if (rb["plane_d"] - ra_pd) >= plane_eps:
+                    break
                 if ra["obj_name"] == rb["obj_name"] or ra["mat"] == rb["mat"]:
                     continue
                 if ra["rank"] == rb["rank"]:
                     continue
                 if ra["n"].dot(rb["n"]) < cos_1deg:
-                    continue
-                if abs(ra["plane_d"] - rb["plane_d"]) >= plane_eps:
                     continue
                 if ra["u1"] <= rb["u0"] or rb["u1"] <= ra["u0"]:
                     continue
@@ -291,7 +294,7 @@ def run_mesh_linter(mesh_objects: List[bpy.types.Object], report_path: Path) -> 
                     coplanar_repaired += 1
 
     # --- 4. Check & Auto-Remove Any Opening/Sign Face Slicing Across a Transverse `Buildings_Walls` Face ---
-    wall_segments = []
+    wall_grid: Dict[Tuple[int, int], List[dict]] = {}
     for rec in face_records:
         if rec["group"] != "Buildings_Walls":
             continue
@@ -307,7 +310,7 @@ def run_mesh_linter(mesh_objects: List[bpy.types.Object], report_path: Path) -> 
         if t_max - t_min < 0.8:
             continue
         c = f.calc_center_median()
-        wall_segments.append({
+        ws_item = {
             "nx": rec["n"].x,
             "ny": rec["n"].y,
             "tx": tx,
@@ -321,7 +324,12 @@ def run_mesh_linter(mesh_objects: List[bpy.types.Object], report_path: Path) -> 
             "x_max": max(xs) + 0.25,
             "y_min": min(ys) - 0.25,
             "y_max": max(ys) + 0.25,
-        })
+        }
+        gx0, gx1 = int(math.floor(ws_item["x_min"] / 16.0)), int(math.floor(ws_item["x_max"] / 16.0))
+        gy0, gy1 = int(math.floor(ws_item["y_min"] / 16.0)), int(math.floor(ws_item["y_max"] / 16.0))
+        for gx in range(gx0, gx1 + 1):
+            for gy in range(gy0, gy1 + 1):
+                wall_grid.setdefault((gx, gy), []).append(ws_item)
 
     intersecting_openings_repaired = 0
     faces_to_delete: Dict[str, List[bmesh.types.BMFace]] = {}
@@ -341,7 +349,8 @@ def run_mesh_linter(mesh_objects: List[bpy.types.Object], report_path: Path) -> 
             continue
 
         hit_transverse_wall = False
-        for ws in wall_segments:
+        cand_walls = wall_grid.get((int(math.floor(0.5 * (fx0 + fx1) / 16.0)), int(math.floor(0.5 * (fy0 + fy1) / 16.0))), ())
+        for ws in cand_walls:
             if fx1 < ws["x_min"] or fx0 > ws["x_max"] or fy1 < ws["y_min"] or fy0 > ws["y_max"]:
                 continue
             if fz1 <= ws["z_min"] or fz0 >= ws["z_max"]:
