@@ -113,7 +113,7 @@ def _build_souq_street_corridor(
     n_bays = max(1, int(round(seg_len / 13.0)))
     hw = 0.5 * street_w
 
-    uv_choices = ("door_wood", "souq_open", "door_wood", "window_glass")
+    uv_choices = ("door_wood", "window_glass", "door_wood", "shutter_louvre")
     awning_mats = ("mat_awning_red", "mat_awning_green", "mat_awning_striped")
 
     for b_i in range(n_bays):
@@ -125,36 +125,43 @@ def _build_souq_street_corridor(
         mx, my = p0[0] + dx * tm, p0[1] + dy * tm
         bz = street_elevation_z(mx, my)
 
-        # Central stone drainage channel & raised stone side curbstones along the street floor
-        collector.add_oriented_box(
-            "Ground_Paving",
-            "mat_stone_boss",
-            bx0,
-            bx1,
-            bz - 0.04,
-            bz + 0.025,
-            -0.22,
-            0.22,
-            (nx, ny),
-            uv_scale=0.35,
-            cap_back=True,
-        )
-        for curb_s in (-1.0, 1.0):
-            c_in = curb_s * (hw - 0.28)
-            c_out = curb_s * hw
-            collector.add_oriented_box(
+        # Slope-conforming central stone drainage channel & side curbstones (evaluated at exact vertex elevations so they never clip sloped streets!)
+        n_curb_sub = 4
+        for cs_i in range(n_curb_sub):
+            ct0 = t0 + (t1 - t0) * (cs_i / n_curb_sub)
+            ct1 = t0 + (t1 - t0) * ((cs_i + 1) / n_curb_sub)
+            cx0, cy0 = p0[0] + dx * ct0, p0[1] + dy * ct0
+            cx1, cy1 = p0[0] + dx * ct1, p0[1] + dy * ct1
+            cz0 = street_elevation_z(cx0, cy0) + 0.014
+            cz1 = street_elevation_z(cx1, cy1) + 0.014
+            collector.add_quad(
                 "Ground_Paving",
-                "mat_stone_mizzi",
-                bx0,
-                bx1,
-                bz - 0.05,
-                bz + 0.075,
-                min(c_in, c_out),
-                max(c_in, c_out),
-                (nx, ny),
-                uv_scale=0.35,
-                cap_back=True,
+                "mat_stone_boss",
+                (cx0 - nx * 0.22, cy0 - ny * 0.22, cz0),
+                (cx0 + nx * 0.22, cy0 + ny * 0.22, cz0),
+                (cx1 + nx * 0.22, cy1 + ny * 0.22, cz1),
+                (cx1 - nx * 0.22, cy1 - ny * 0.22, cz1),
+                uv_scale=0.38,
+                smooth=True,
+                expected_normal=(0.0, 0.0, 1.0),
             )
+            for curb_s in (-1.0, 1.0):
+                d_in = curb_s * (hw - 0.28)
+                d_out = curb_s * hw
+                d_lo, d_hi = min(d_in, d_out), max(d_in, d_out)
+                cz0_c = street_elevation_z(cx0 + nx * d_in, cy0 + ny * d_in) + 0.032
+                cz1_c = street_elevation_z(cx1 + nx * d_in, cy1 + ny * d_in) + 0.032
+                collector.add_quad(
+                    "Ground_Paving",
+                    "mat_stone_mizzi",
+                    (cx0 + nx * d_lo, cy0 + ny * d_lo, cz0_c),
+                    (cx0 + nx * d_hi, cy0 + ny * d_hi, cz0_c),
+                    (cx1 + nx * d_hi, cy1 + ny * d_hi, cz1_c),
+                    (cx1 + nx * d_lo, cy1 + ny * d_lo, cz1_c),
+                    uv_scale=0.38,
+                    smooth=True,
+                    expected_normal=(0.0, 0.0, 1.0),
+                )
 
         for side_idx, side_s in enumerate((-1.0, 1.0)):
             # Wall face normal pointing into the street corridor
@@ -220,6 +227,34 @@ def _build_souq_street_corridor(
                     segments=10,
                 )
 
+            # Multi-layered woven kilim/carpet rack centered on the wide open stone pier (`tm` when no arch pier, or `t0` between bays — 100% clear of shop arch moldings!)
+            if with_shops and (b_i % 2 == 1 or b_i > 0):
+                has_arch_pier_at_tm = with_arches and (b_i % 2 == 0 or vaulted_roof)
+                tp_rug = t0 if has_arch_pier_at_tm else tm
+                rx_rug = p0[0] + dx * tp_rug + nx * side_s * (hw - 0.01)
+                ry_rug = p0[1] + dy * tp_rug + ny * side_s * (hw - 0.01)
+                rz_rug = street_elevation_z(rx_rug, ry_rug)
+                collector.add_box(
+                    "StreetProps",
+                    "mat_bark",
+                    (rx_rug + fnx * 0.14, ry_rug + fny * 0.14, rz_rug + 2.92),
+                    (1.02, 0.12, 0.08),
+                    rot_z=rot_wall,
+                )
+                for k_idx, (k_dz, k_h, k_mat) in enumerate((
+                    (2.55, 0.65, "mat_awning_striped"),
+                    (2.08, 0.44, "mat_terracotta"),
+                    (1.72, 0.36, "mat_tile_iznik"),
+                )):
+                    collector.add_box(
+                        "StreetProps",
+                        k_mat,
+                        (rx_rug + fnx * (0.16 + k_idx * 0.015), ry_rug + fny * (0.16 + k_idx * 0.015), rz_rug + k_dz),
+                        (0.86 - k_idx * 0.06, 0.05, k_h),
+                        rot_z=rot_wall,
+                        uv_scale=0.5,
+                    )
+
             for sub_idx, sub_off in enumerate((-0.24, 0.24)):
                 st = tm + sub_off / n_bays
                 sx = p0[0] + dx * st + nx * side_s * (hw - 0.01)
@@ -257,7 +292,7 @@ def _build_souq_street_corridor(
                         offset_n1=0.22,
                         num_voussoirs=7,
                     )
-                    # Projecting sloped shop awning & hanging carpet/scarf rack on alternating bays
+                    # Projecting sloped shop awning with front valance trim & wrought-iron scroll brackets on alternating bays
                     if (b_i + side_idx + sub_idx) % 2 == 0 and not vaulted_roof:
                         aw_mat = awning_mats[(seed + b_i + side_idx + sub_idx) % len(awning_mats)]
                         collector.add_box(
@@ -269,13 +304,11 @@ def _build_souq_street_corridor(
                             uv_scale=0.45,
                             bottom_face=True,
                         )
-                    if (b_i + sub_idx) % 2 == 1:
-                        rug_mat = "mat_awning_red" if (b_i + side_idx) % 2 == 0 else "mat_awning_striped"
                         collector.add_box(
                             "StreetProps",
-                            rug_mat,
-                            (sx + ftx * 1.42 + fnx * 0.14, sy + fty * 1.42 + fny * 0.14, sz + 2.15),
-                            (0.55, 0.08, 1.45),
+                            "mat_stone_mizzi",
+                            (sx + fnx * 0.92, sy + fny * 0.92, sz + 3.38),
+                            (2.56, 0.08, 0.14),
                             rot_z=rot_wall,
                             uv_scale=0.5,
                         )
@@ -413,8 +446,8 @@ def _build_souq_street_corridor(
                         rot_z=rot_wall,
                         uv_rect=WOOD_DOOR_UV["shutter_louvre"],
                     )
-                # Occasional projecting wooden Mashrabiya (oriel bay window) or wrought-iron balcony
-                if (b_i + side_idx) % 3 == 1 and sub_idx == 1:
+                # Occasional projecting wooden Mashrabiya (oriel bay window) on non-vaulted open streets
+                if (b_i + side_idx) % 3 == 1 and sub_idx == 1 and not vaulted_roof:
                     collector.add_box(
                         "Buildings_Details",
                         "mat_bark",
@@ -426,28 +459,49 @@ def _build_souq_street_corridor(
                     )
 
         if vaulted_roof:
-            # Continuous vaulted stone ceiling on left & right sides leaving a central 1.1m daylight skylight strip,
-            # directly resting on top of the transverse vault arches (`bz + 6.85 .. 7.45m`) with zero floating-slab gap!
-            for v_side in (-1.0, 1.0):
-                collector.add_oriented_box(
+            # Deep pointed Mamluk stone barrel-vault bays (`Suq al-Qattanin`) with daylight skylight slots between bays (zero flat roof shelves!)
+            for sub_v in (-0.25, 0.25):
+                vt = tm + sub_v / n_bays
+                vx = p0[0] + dx * vt
+                vy = p0[1] + dy * vt
+                vz = street_elevation_z(vx, vy)
+                add_arch_spandrel_wall(
+                    collector,
                     "Buildings_Walls",
                     "mat_stone_ashlar",
-                    bx0,
-                    bx1,
-                    bz + 6.85,
-                    bz + 7.45,
-                    v_side * (0.55 if v_side > 0 else (hw + 0.4)),
-                    v_side * ((hw + 0.4) if v_side > 0 else 0.55),
+                    (vx, vy, vz + 5.15),
                     (nx, ny),
-                    uv_scale=0.26,
-                    cap_back=True,
-                    cap_bottom=True,
+                    (tx, ty),
+                    span_w=street_w - 0.15,
+                    arch_h=2.45,
+                    z_top=vz + wall_h,
+                    offset_n0=-2.15,
+                    offset_n1=2.15,
+                    num_voussoirs=11,
+                    emit_soffit=True,
                 )
-        if with_arches and (b_i % 2 == 0 or vaulted_roof):
+                for face_dir in (-1.0, 1.0):
+                    add_arch_voussoirs(
+                        collector,
+                        "Buildings_Details",
+                        "mat_stone_boss",
+                        (vx + tx * (face_dir * 2.15), vy + ty * (face_dir * 2.15), vz + 5.15),
+                        (nx * face_dir, ny * face_dir),
+                        (tx * face_dir, ty * face_dir),
+                        span_w=street_w - 0.25,
+                        arch_h=2.45,
+                        ring_thickness=0.38,
+                        offset_n0=-0.04,
+                        offset_n1=0.18,
+                        num_voussoirs=11,
+                    )
+                collector.add_box("StreetProps", "mat_dome_gold", (vx, vy, vz + 7.15), (0.04, 0.04, 0.95))
+                collector.add_box("StreetProps", "mat_lantern_glow", (vx, vy, vz + 6.55), (0.28, 0.28, 0.38), bottom_face=True)
+        elif with_arches and (b_i % 2 == 0):
             # True pointed 3D stone flying-buttress arch + spandrel wall spanning across the street + hanging souq lantern
-            arch_sp_z = (bz + 4.75) if vaulted_roof else (bz + 4.35)
-            arch_h_v = 2.05 if vaulted_roof else 1.75
-            arch_top_z = (bz + 7.05) if vaulted_roof else (bz + 6.65)
+            arch_sp_z = bz + 4.35
+            arch_h_v = 1.75
+            arch_top_z = bz + 6.65
             for a_side in (-1.0, 1.0):
                 collector.add_box(
                     "Buildings_Walls",
@@ -2271,6 +2325,84 @@ def build_region_r02_christian_quarter(
     _build_souq_street_corridor(collector, (82.0, 185.0), (154.0, 185.0), street_w=5.8, wall_h=8.4, with_arches=True, with_shops=True, seed=202)
     _build_souq_street_corridor(collector, (-20.0, 250.0), (35.0, 195.0), street_w=6.2, wall_h=8.8, with_arches=True, with_shops=False, seed=203)
 
+    # 2-Storey Arched Vista-Termination Facade & Church Dome at the North end of Christian Quarter Road (`(132.5, 161.0)`, facing South `(0, -1)`)
+    cq_x, cq_y = 132.5, 161.0
+    cq_z = street_elevation_z(cq_x, cq_y)
+    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (cq_x, cq_y, cq_z + 4.4), (10.8, 5.4, 8.8), uv_scale=0.24)
+    collector.add_box("Buildings_Details", "mat_stone_boss", (cq_x, cq_y, cq_z + 4.25), (11.1, 5.6, 0.24), uv_scale=0.32)
+    collector.add_box("Buildings_Details", "mat_stone_boss", (cq_x, cq_y, cq_z + 8.95), (11.3, 5.8, 0.38), uv_scale=0.30)
+    collector.add_branch_tube("Buildings_Walls", "mat_stone_mizzi", (cq_x, cq_y + 0.6, cq_z + 8.8), (cq_x, cq_y + 0.6, cq_z + 11.4), 2.8, 2.7, segments=12, cap_end=True)
+    collector.add_dome("Buildings_Details", "mat_dome_lead", (cq_x, cq_y + 0.6, cq_z + 11.3), radius=2.75, height=2.35, rings=6, segments=12)
+    collector.add_box("Buildings_Details", "mat_dome_gold", (cq_x, cq_y + 0.6, cq_z + 14.1), (0.14, 0.14, 1.15))
+    collector.add_box("Buildings_Details", "mat_dome_gold", (cq_x, cq_y + 0.6, cq_z + 14.3), (0.68, 0.14, 0.14))
+    for bay_cq in (-2.4, 2.4):
+        add_arched_opening_panel(
+            collector,
+            "Buildings_Openings",
+            "mat_wood_doors",
+            (cq_x + bay_cq, cq_y - 2.71),
+            cq_z,
+            cq_z + 2.15,
+            1.05,
+            2.15,
+            0.01,
+            (1.0, 0.0),
+            (0.0, -1.0),
+            uv_rect=WOOD_DOOR_UV["door_wood" if bay_cq < 0 else "window_glass"],
+            num_voussoirs=7,
+            add_wall_spandrel=False,
+        )
+        add_arch_voussoirs(
+            collector,
+            "Buildings_Details",
+            "mat_stone_boss",
+            (cq_x + bay_cq, cq_y - 2.71, cq_z + 2.15),
+            (1.0, 0.0),
+            (0.0, -1.0),
+            span_w=2.15,
+            arch_h=1.05,
+            ring_thickness=0.32,
+            offset_n0=-0.04,
+            offset_n1=0.20,
+            num_voussoirs=7,
+        )
+        add_arched_opening_panel(
+            collector,
+            "Buildings_Openings",
+            "mat_wood_doors",
+            (cq_x + bay_cq, cq_y - 2.71),
+            cq_z + 4.75,
+            cq_z + 6.25,
+            0.65,
+            1.30,
+            0.01,
+            (1.0, 0.0),
+            (0.0, -1.0),
+            uv_rect=WOOD_DOOR_UV["window_glass"],
+            num_voussoirs=5,
+            add_wall_spandrel=False,
+        )
+        add_arch_voussoirs(
+            collector,
+            "Buildings_Details",
+            "mat_stone_boss",
+            (cq_x + bay_cq, cq_y - 2.71, cq_z + 6.25),
+            (1.0, 0.0),
+            (0.0, -1.0),
+            span_w=1.30,
+            arch_h=0.65,
+            ring_thickness=0.26,
+            offset_n0=-0.04,
+            offset_n1=0.18,
+            num_voussoirs=5,
+        )
+        for sh_cq in (-0.82, 0.82):
+            collector.add_box("Buildings_Openings", "mat_wood_doors", (cq_x + bay_cq + sh_cq, cq_y - 2.78, cq_z + 5.55), (0.36, 0.08, 1.48), uv_rect=WOOD_DOOR_UV["shutter_louvre"])
+    collector.add_box("Buildings_Details", "mat_stone_mizzi", (cq_x, cq_y - 3.05, cq_z + 4.65), (3.4, 0.72, 0.18), uv_scale=0.35, bottom_face=True)
+    collector.add_box("StreetProps", "mat_iron_dark", (cq_x, cq_y - 3.38, cq_z + 5.38), (3.35, 0.06, 0.06))
+    for sp_cq in (-1.5, -0.75, 0.0, 0.75, 1.5):
+        collector.add_box("StreetProps", "mat_iron_dark", (cq_x + sp_cq, cq_y - 3.38, cq_z + 5.02), (0.05, 0.05, 0.72))
+
     # Muristan North Market Gateway Arch & Flanking 2-Storey Corner Arcade Wings (`Suq Aftimos` entrance at `(235.0, 154.0)`)
     ma_x, ma_y = 235.0, 154.0
     ma_z = street_elevation_z(ma_x, ma_y)
@@ -2715,27 +2847,43 @@ def _build_vaulted_triple_souq_and_chain_street(collector: MeshCollector, sign_a
                     (0.36, 0.08, 1.52),
                     uv_rect=WOOD_DOOR_UV["shutter_louvre"],
                 )
-        # Projecting wooden Mashrabiya bay windows, framed street plaques & active spice stalls on the intermediate piers (`x = 307.5, 318.5`)
+        # Carved Crusader stone buttress pilasters (supporting the transverse flying arches at `z = +5.2m`), circular stone medallions, plaques & spice stalls on piers (`x = 307.5, 318.5`)
         for p_idx, px_j in enumerate((307.5, 318.5)):
             collector.add_box(
                 "Buildings_Details",
-                "mat_bark",
-                (px_j, y_face + fny * 0.38, junc_z + 6.65),
-                (1.65, 0.72, 1.95),
-                uv_scale=0.35,
-                bottom_face=True,
+                "mat_stone_boss",
+                (px_j, y_face + fny * 0.22, junc_z + 2.65),
+                (1.12, 0.44, 5.10),
+                uv_scale=0.28,
             )
             collector.add_box(
                 "Buildings_Details",
                 "mat_stone_mizzi",
-                (px_j, y_face + fny * 0.06, junc_z + 3.45),
+                (px_j, y_face + fny * 0.28, junc_z + 5.10),
+                (1.28, 0.56, 0.26),
+                uv_scale=0.35,
+            )
+            collector.add_branch_tube(
+                "Buildings_Details",
+                "mat_stone_mizzi",
+                (px_j + 1.85, y_face + fny * 0.04, junc_z + 7.45),
+                (px_j + 1.85, y_face + fny * 0.20, junc_z + 7.45),
+                0.42,
+                0.38,
+                segments=10,
+                cap_end=True,
+            )
+            collector.add_box(
+                "Buildings_Details",
+                "mat_stone_mizzi",
+                (px_j, y_face + fny * 0.46, junc_z + 3.45),
                 (0.62, 0.08, 0.38),
                 uv_scale=0.45,
             )
             collector.add_box(
                 "Buildings_Details",
                 "mat_tile_iznik",
-                (px_j, y_face + fny * 0.09, junc_z + 3.45),
+                (px_j, y_face + fny * 0.49, junc_z + 3.45),
                 (0.50, 0.06, 0.28),
                 uv_scale=0.5,
             )
@@ -3095,6 +3243,7 @@ def build_region_r03_central_souqs(
 
     r03_corridors = [
         [(175.0, 4.0), (300.0, 8.0), (440.0, 36.0), (595.0, 68.0)],
+        [(328.0, 6.0), (432.0, 18.0)],
         [(305.0, 155.0), (305.0, 260.0)],
         [(510.0, 58.0), (510.0, 250.0)],
         [(515.0, 145.0), (668.0, 145.0)],
@@ -3119,7 +3268,7 @@ def build_region_r03_central_souqs(
         if _ring_overlaps_rect(ring, 558.0, 132.0, 670.0, 158.0):
             continue
         # Keep Street of the Chain, Khan el-Zeit, El-Wad, and Suq al-Qattanin corridors clear
-        if any(_ring_overlaps_polyline(ring, corr, 9.5) for corr in r03_corridors):
+        if any(_ring_overlaps_polyline(ring, corr, 10.5) for corr in r03_corridors):
             continue
         valid_blds.append(b)
         register_scene_building_ring(osm_id, ring)
@@ -3472,7 +3621,7 @@ def _build_st_james_cathedral_and_patriarchate(collector: MeshCollector, sign_at
                 0.01,
                 (1.0, 0.0),
                 (0.0, -1.0),
-                uv_rect=WOOD_DOOR_UV["souq_open" if bay_dx < 0 else "door_wood"],
+                uv_rect=WOOD_DOOR_UV["window_glass" if bay_dx < 0 else "door_wood"],
                 num_voussoirs=7,
                 add_wall_spandrel=False,
             )
@@ -3490,6 +3639,15 @@ def _build_st_james_cathedral_and_patriarchate(collector: MeshCollector, sign_at
                 offset_n1=0.20,
                 num_voussoirs=7,
             )
+            if bay_dx < 0:
+                collector.add_box(
+                    "StreetProps",
+                    "mat_awning_red" if zb_i % 2 == 0 else "mat_awning_striped",
+                    (bx_z, by_z - 0.46, zb_z + 3.42),
+                    (2.45, 0.88, 0.14),
+                    uv_scale=0.45,
+                    bottom_face=True,
+                )
             # Framed cobalt-blue Armenian ceramic shop plaque above the ground arch
             collector.add_box("Buildings_Details", "mat_stone_mizzi", (bx_z, by_z - 0.06, zb_z + 3.55), (1.35, 0.12, 0.42), uv_scale=0.35)
             collector.add_box("Buildings_Details", "mat_tile_iznik", (bx_z, by_z - 0.10, zb_z + 3.55), (1.15, 0.08, 0.28), uv_scale=0.5)
@@ -3540,16 +3698,54 @@ def _build_st_james_cathedral_and_patriarchate(collector: MeshCollector, sign_at
         collector.add_box("CityWalls", "mat_stone_mizzi", (sx_r, sy_r + 0.95, sz_r + sh_r + 0.42), (1.22, 0.34, 0.84), uv_scale=0.32)
     for bol_x in (154.0, 160.0, 166.0, 172.0, 178.0):
         build_bollard(collector, bol_x, -398.5, street_elevation_z(bol_x, -398.5))
-    # Zion Gate Inner Vestibule Arched Courtyard Facade (`(192.5, -396.5)`) + Mount Zion / Dormition Abbey Tower Skyline & Foliage
+    # Zion Gate Inner Vestibule Arched Courtyard Facade (`(192.5, -396.5)`) + West-Facing Ottoman Gate Arch, Rosettes & Battlements!
     zv_x, zv_y = 192.5, -396.5
     zv_z = street_elevation_z(zv_x, zv_y)
-    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (zv_x, zv_y, zv_z + 4.2), (10.5, 4.8, 8.4), uv_scale=0.24)
-    collector.add_box("Buildings_Details", "mat_stone_boss", (zv_x, zv_y, zv_z + 8.55), (10.9, 5.2, 0.38), uv_scale=0.30)
+    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (zv_x, zv_y, zv_z + 4.4), (10.5, 6.2, 8.8), uv_scale=0.24)
+    collector.add_box("Buildings_Details", "mat_stone_boss", (zv_x, zv_y, zv_z + 8.95), (10.9, 6.6, 0.38), uv_scale=0.30)
+    for m_dy in (-2.2, -0.75, 0.75, 2.2):
+        collector.add_box("CityWalls", "mat_stone_boss", (zv_x - 5.05, zv_y + m_dy, zv_z + 9.55), (0.65, 0.92, 0.95), uv_scale=0.30)
+        collector.add_box("CityWalls", "mat_stone_mizzi", (zv_x - 5.05, zv_y + m_dy, zv_z + 10.12), (0.72, 1.00, 0.18), uv_scale=0.35)
+    # West-facing inner gatehouse archway (`zv_x - 5.26`, facing West `(-1, 0)` directly down `r04_zion_gate_inner_lane`)
     add_arched_opening_panel(
         collector,
         "Buildings_Openings",
         "mat_wood_doors",
-        (zv_x, zv_y - 2.41),
+        (zv_x - 5.26, zv_y),
+        zv_z,
+        zv_z + 2.65,
+        1.30,
+        2.65,
+        0.01,
+        (0.0, -1.0),
+        (-1.0, 0.0),
+        uv_rect=WOOD_DOOR_UV["door_wood"],
+        num_voussoirs=9,
+        add_wall_spandrel=False,
+    )
+    add_arch_voussoirs(
+        collector,
+        "Buildings_Details",
+        "mat_stone_boss",
+        (zv_x - 5.26, zv_y, zv_z + 2.65),
+        (0.0, -1.0),
+        (-1.0, 0.0),
+        span_w=2.65,
+        arch_h=1.30,
+        ring_thickness=0.38,
+        offset_n0=-0.04,
+        offset_n1=0.24,
+        num_voussoirs=9,
+    )
+    collector.add_box("Buildings_Details", "mat_stone_mizzi", (zv_x - 5.34, zv_y, zv_z + 4.95), (0.20, 1.65, 0.72), uv_scale=0.35)
+    for ros_y in (-2.05, 2.05):
+        collector.add_branch_tube("Buildings_Details", "mat_stone_mizzi", (zv_x - 5.22, zv_y + ros_y, zv_z + 5.85), (zv_x - 5.42, zv_y + ros_y, zv_z + 5.85), 0.48, 0.44, segments=10, cap_end=True)
+    # South-facing vestibule archway
+    add_arched_opening_panel(
+        collector,
+        "Buildings_Openings",
+        "mat_wood_doors",
+        (zv_x, zv_y - 3.11),
         zv_z,
         zv_z + 2.4,
         1.15,
@@ -3565,7 +3761,7 @@ def _build_st_james_cathedral_and_patriarchate(collector: MeshCollector, sign_at
         collector,
         "Buildings_Details",
         "mat_stone_boss",
-        (zv_x, zv_y - 2.41, zv_z + 2.4),
+        (zv_x, zv_y - 3.11, zv_z + 2.4),
         (1.0, 0.0),
         (0.0, -1.0),
         span_w=2.30,
@@ -3575,23 +3771,29 @@ def _build_st_james_cathedral_and_patriarchate(collector: MeshCollector, sign_at
         offset_n1=0.22,
         num_voussoirs=7,
     )
-    build_wall_lantern(collector, (zv_x - 1.8, zv_y - 2.48, zv_z + 3.2), (1.0, 0.0), (0.0, -1.0))
-    # Cylindrical Romanesque stone tower & conical lead dome of Dormition Abbey on Mount Zion OUTSIDE the Southern City Wall (`(174.0, -434.0)`)
-    da_x, da_y = 174.0, -434.0
-    da_z = street_elevation_z(da_x, da_y)
-    collector.add_branch_tube("Buildings_Walls", "mat_stone_mizzi", (da_x, da_y, da_z), (da_x, da_y, da_z + 25.0), 3.10, 2.95, segments=12, cap_end=True)
-    for ring_z in (15.5, 18.5, 21.8, 24.6):
-        collector.add_branch_tube("Buildings_Details", "mat_stone_boss", (da_x, da_y, da_z + ring_z), (da_x, da_y, da_z + ring_z + 0.32), 3.26, 3.26, segments=12, cap_end=True)
-    for belf_ang in range(0, 360, 45):
-        brad = math.radians(belf_ang)
-        collector.add_box(
-            "Buildings_Openings",
-            "mat_iron_dark",
-            (da_x + math.cos(brad) * 3.02, da_y + math.sin(brad) * 3.02, da_z + 20.1),
-            (0.45, 0.45, 1.95),
-            rot_z=brad,
-        )
-    collector.add_branch_tube("Buildings_Details", "mat_dome_lead", (da_x, da_y, da_z + 24.8), (da_x, da_y, da_z + 30.6), 3.18, 0.16, segments=12, cap_end=True)
+    build_wall_lantern(collector, (zv_x - 1.8, zv_y - 3.18, zv_z + 3.2), (1.0, 0.0), (0.0, -1.0))
+    # Cylindrical Romanesque Bell Tower & Conical Rotunda Dome of Dormition Abbey on Mount Zion OUTSIDE the Southern City Wall (`(204.0, -420.5)`)
+    for da_x, da_y in ((174.0, -434.0), (204.0, -420.5)):
+        da_z = street_elevation_z(da_x, da_y)
+        collector.add_branch_tube("Buildings_Walls", "mat_stone_mizzi", (da_x, da_y, da_z), (da_x, da_y, da_z + 26.5), 3.15, 2.98, segments=12, cap_end=True)
+        for ring_z in (16.5, 19.5, 22.8, 26.0):
+            collector.add_branch_tube("Buildings_Details", "mat_stone_boss", (da_x, da_y, da_z + ring_z), (da_x, da_y, da_z + ring_z + 0.32), 3.30, 3.30, segments=12, cap_end=True)
+        for belf_ang in range(0, 360, 45):
+            brad = math.radians(belf_ang)
+            collector.add_box(
+                "Buildings_Openings",
+                "mat_iron_dark",
+                (da_x + math.cos(brad) * 3.05, da_y + math.sin(brad) * 3.05, da_z + 21.1),
+                (0.46, 0.46, 2.05),
+                rot_z=brad,
+            )
+        collector.add_branch_tube("Buildings_Details", "mat_dome_lead", (da_x, da_y, da_z + 26.3), (da_x, da_y, da_z + 32.8), 3.24, 0.16, segments=12, cap_end=True)
+        collector.add_box("Buildings_Details", "mat_dome_gold", (da_x, da_y, da_z + 33.4), (0.14, 0.14, 1.35))
+    # Adjacent Conical Lead Rotunda of Dormition Abbey (`(214.0, -424.0)`) rising above the southern ramparts
+    dr_x, dr_y = 214.0, -424.0
+    dr_z = street_elevation_z(dr_x, dr_y)
+    collector.add_branch_tube("Buildings_Walls", "mat_stone_mizzi", (dr_x, dr_y, dr_z), (dr_x, dr_y, dr_z + 17.5), 7.6, 7.4, segments=14, cap_end=True)
+    collector.add_branch_tube("Buildings_Details", "mat_dome_lead", (dr_x, dr_y, dr_z + 17.4), (dr_x, dr_y, dr_z + 25.8), 7.7, 0.22, segments=14, cap_end=True)
     build_olive_tree(collector, 202.5, -403.0, street_elevation_z(202.5, -403.0) + 4.5, height=7.2, seed=525, with_kerb=False)
 
 
@@ -4236,13 +4438,18 @@ def _build_hurva_synagogue_and_roman_cardo(collector: MeshCollector, sign_atlas:
     # Wall-mounted wrought-iron heritage lanterns on the synagogue piers (plus off-center courtyard lamps that never block the center sightline!)
     for wy_lan in (-4.35, 0.0, 4.35):
         build_wall_lantern(collector, (sx - 12.08, sy + wy_lan, sz + 3.45), (0.0, -1.0), (-1.0, 0.0))
-    # Courtyard stone planter beds with 3D rounded shrub mounds, benches & lamps in front of the Four Sephardic Synagogues (`x = 350.5`)
+    # Courtyard stone planter beds with 3D rounded shrub mounds, wooden slatted benches, heritage lectern & lamps in front of the Four Sephardic Synagogues (`x = 350.5`)
     for py_pl in (-5.2, 5.2):
         pz_pl = street_elevation_z(350.5, sy + py_pl)
         collector.add_box("StreetProps", "mat_stone_mizzi", (350.5, sy + py_pl, pz_pl + 0.42), (1.8, 2.4, 0.84), uv_scale=0.35)
         collector.add_box("Trees_Foliage", "mat_foliage_olive", (350.5, sy + py_pl, pz_pl + 0.90), (1.4, 1.9, 0.36), uv_scale=0.6)
         for sh_dy in (-0.52, 0.52):
             collector.add_dome("Trees_Foliage", "mat_foliage_olive", (350.5, sy + py_pl + sh_dy, pz_pl + 0.96), radius=0.68, height=0.64, rings=4, segments=8)
+        # Wooden slatted courtyard bench with black iron legs beside each planter
+        collector.add_box("StreetProps", "mat_bark", (349.2, sy + py_pl * 0.52, pz_pl + 0.44), (0.58, 1.85, 0.08), uv_scale=0.4)
+        collector.add_box("StreetProps", "mat_bark", (349.45, sy + py_pl * 0.52, pz_pl + 0.72), (0.08, 1.85, 0.42), uv_scale=0.4)
+        for bl_y in (-0.75, 0.75):
+            collector.add_box("StreetProps", "mat_iron_dark", (349.2, sy + py_pl * 0.52 + bl_y, pz_pl + 0.22), (0.54, 0.08, 0.44))
         build_street_lamp(collector, 350.5, sy + py_pl * 1.55, street_elevation_z(350.5, sy + py_pl * 1.55), height=4.1)
     for dx in (-5.5, 5.5):
         for dy in (-4.5, 4.5):
@@ -4302,20 +4509,56 @@ def _build_hurva_synagogue_and_roman_cardo(collector: MeshCollector, sign_atlas:
             offset_n1=0.18,
             num_voussoirs=9,
         )
+    # Ground-floor portal & flanking arched synagogue windows + 3 upper monumental arched sanctuary windows (including Tiferet Yisrael's signature central arch!)
     for wy_t in (-4.8, 0.0, 4.8):
+        # Ground-floor opening (central wooden portal door at `wy_t == 0.0`, flanking grilled arched windows at `±4.8`)
         add_arched_opening_panel(
             collector,
             "Buildings_Openings",
             "mat_wood_doors",
             (tx_s - 9.01, ty_s + wy_t),
-            tz_s + (0.0 if wy_t == 0.0 else 4.8),
-            tz_s + (3.2 if wy_t == 0.0 else 8.6),
-            1.30,
-            2.60,
+            tz_s + (0.0 if wy_t == 0.0 else 0.95),
+            tz_s + (3.1 if wy_t == 0.0 else 2.55),
+            1.25 if wy_t == 0.0 else 0.92,
+            2.50 if wy_t == 0.0 else 1.85,
             0.01,
             (0.0, -1.0),
             (-1.0, 0.0),
             uv_rect=WOOD_DOOR_UV["door_wood" if wy_t == 0.0 else "window_glass"],
+            num_voussoirs=9 if wy_t == 0.0 else 7,
+            add_wall_spandrel=False,
+        )
+        add_arch_voussoirs(
+            collector,
+            "Buildings_Details",
+            "mat_stone_boss",
+            (tx_s - 9.01, ty_s + wy_t, tz_s + (3.1 if wy_t == 0.0 else 2.55)),
+            (0.0, -1.0),
+            (-1.0, 0.0),
+            span_w=2.50 if wy_t == 0.0 else 1.85,
+            arch_h=1.25 if wy_t == 0.0 else 0.92,
+            ring_thickness=0.36 if wy_t == 0.0 else 0.30,
+            offset_n0=-0.04,
+            offset_n1=0.22,
+            num_voussoirs=9 if wy_t == 0.0 else 7,
+        )
+        # Upper-storey sanctuary window on ALL 3 bays (`wy_t in (-4.8, 0.0, 4.8)`), taller & framed by a double compound arch in the center!
+        up_z1 = tz_s + (9.1 if wy_t == 0.0 else 8.6)
+        up_sp = 2.90 if wy_t == 0.0 else 2.50
+        up_ah = 1.45 if wy_t == 0.0 else 1.25
+        add_arched_opening_panel(
+            collector,
+            "Buildings_Openings",
+            "mat_wood_doors",
+            (tx_s - 9.01, ty_s + wy_t),
+            tz_s + 4.85,
+            up_z1,
+            up_ah,
+            up_sp,
+            0.01,
+            (0.0, -1.0),
+            (-1.0, 0.0),
+            uv_rect=WOOD_DOOR_UV["window_glass"],
             num_voussoirs=9,
             add_wall_spandrel=False,
         )
@@ -4323,37 +4566,36 @@ def _build_hurva_synagogue_and_roman_cardo(collector: MeshCollector, sign_atlas:
             collector,
             "Buildings_Details",
             "mat_stone_boss",
-            (tx_s - 9.01, ty_s + wy_t, tz_s + (3.2 if wy_t == 0.0 else 8.6)),
+            (tx_s - 9.01, ty_s + wy_t, up_z1),
             (0.0, -1.0),
             (-1.0, 0.0),
-            span_w=2.60,
-            arch_h=1.30,
+            span_w=up_sp,
+            arch_h=up_ah,
             ring_thickness=0.38,
             offset_n0=-0.04,
             offset_n1=0.24,
             num_voussoirs=9,
         )
-        # Carved circular stone rosette / oculus window in the upper facade above the door and flanking bays
-        oc_z = tz_s + (9.2 if wy_t == 0.0 else 2.2)
-        collector.add_branch_tube(
-            "Buildings_Details",
-            "mat_stone_boss",
-            (tx_s - 9.0, ty_s + wy_t, oc_z),
-            (tx_s - 9.22, ty_s + wy_t, oc_z),
-            0.85 if wy_t == 0.0 else 0.62,
-            0.80 if wy_t == 0.0 else 0.58,
-            segments=12,
-        )
-        collector.add_branch_tube(
-            "Buildings_Openings",
-            "mat_iron_dark",
-            (tx_s - 9.05, ty_s + wy_t, oc_z),
-            (tx_s - 9.16, ty_s + wy_t, oc_z),
-            0.58 if wy_t == 0.0 else 0.42,
-            0.55 if wy_t == 0.0 else 0.40,
-            segments=12,
-            cap_end=True,
-        )
+        if wy_t == 0.0:
+            # Monumental outer stepped stone blind arch + recessed dark glazed circular rose window above Tiferet Yisrael's central sanctuary window
+            add_arch_voussoirs(
+                collector,
+                "Buildings_Details",
+                "mat_stone_mizzi",
+                (tx_s - 9.01, ty_s, tz_s + 9.25),
+                (0.0, -1.0),
+                (-1.0, 0.0),
+                span_w=4.15,
+                arch_h=2.05,
+                ring_thickness=0.36,
+                offset_n0=-0.02,
+                offset_n1=0.34,
+                num_voussoirs=13,
+                keystone_boost=0.07,
+            )
+            collector.add_branch_tube("Buildings_Details", "mat_stone_boss", (tx_s - 9.0, ty_s, tz_s + 12.05), (tx_s - 9.26, ty_s, tz_s + 12.05), 0.78, 0.72, segments=12)
+            collector.add_branch_tube("Buildings_Openings", "mat_iron_dark", (tx_s - 9.06, ty_s, tz_s + 12.05), (tx_s - 9.18, ty_s, tz_s + 12.05), 0.56, 0.54, segments=12, cap_end=True)
+    # 12-windowed cylindrical stone drum (`tz_s + 13.4 .. 17.6m`) + soaring hemispherical white dome & golden finial
     collector.add_branch_tube(
         "Buildings_Walls",
         "mat_stone_mizzi",
@@ -4361,9 +4603,45 @@ def _build_hurva_synagogue_and_roman_cardo(collector: MeshCollector, sign_atlas:
         (tx_s, ty_s, tz_s + 17.6),
         6.4,
         6.2,
-        segments=14,
+        segments=16,
         cap_end=True,
     )
+    for w_ang_deg in range(0, 360, 30):
+        w_ang = math.radians(w_ang_deg)
+        wx_t = tx_s + math.cos(w_ang) * 6.32
+        wy_t_d = ty_s + math.sin(w_ang) * 6.32
+        tx_d, ty_d = -math.sin(w_ang), math.cos(w_ang)
+        nx_d, ny_d = math.cos(w_ang), math.sin(w_ang)
+        add_arched_opening_panel(
+            collector,
+            "Buildings_Openings",
+            "mat_wood_doors",
+            (wx_t, wy_t_d),
+            tz_s + 14.1,
+            tz_s + 16.3,
+            0.55,
+            1.10,
+            0.02,
+            (tx_d, ty_d),
+            (nx_d, ny_d),
+            uv_rect=WOOD_DOOR_UV["window_glass"],
+            num_voussoirs=5,
+            add_wall_spandrel=False,
+        )
+        add_arch_voussoirs(
+            collector,
+            "Buildings_Details",
+            "mat_stone_boss",
+            (wx_t, wy_t_d, tz_s + 16.3),
+            (tx_d, ty_d),
+            (nx_d, ny_d),
+            span_w=1.22,
+            arch_h=0.60,
+            ring_thickness=0.22,
+            offset_n0=-0.02,
+            offset_n1=0.16,
+            num_voussoirs=5,
+        )
     collector.add_dome(
         "Buildings_Details",
         "mat_stone_mizzi",
@@ -4373,6 +4651,7 @@ def _build_hurva_synagogue_and_roman_cardo(collector: MeshCollector, sign_atlas:
         rings=8,
         segments=16,
     )
+    collector.add_box("Buildings_Details", "mat_dome_gold", (tx_s, ty_s, tz_s + 23.8), (0.20, 0.20, 1.45), uv_scale=0.5)
     for b_ty in (-171.0, -165.0, -159.0):
         build_bollard(collector, 476.5, b_ty, street_elevation_z(476.5, b_ty))
     for lamp_ty in (-173.5, -156.5):
@@ -4570,6 +4849,13 @@ def _build_hurva_synagogue_and_roman_cardo(collector: MeshCollector, sign_atlas:
         collector.add_box("StreetProps", "mat_iron_dark", (px_w, py_w, bwz + 1.38), (sx_w, sy_w * 0.25 if sy_w < 1.0 else 0.08, 0.08))
     for r_post_x in (-5.2, -2.6, 0.0, 2.6, 5.2):
         collector.add_box("StreetProps", "mat_iron_dark", (bwx + r_post_x, bwy - 10.6, bwz + 1.12), (0.08, 0.08, 0.55))
+    # Heritage archaeological information lectern & wooden slatted viewing bench on the south terrace (`y = bwy - 11.4`)
+    collector.add_box("StreetProps", "mat_stone_mizzi", (bwx - 1.6, bwy - 11.25, bwz + 0.55), (0.65, 0.48, 1.10), uv_scale=0.35)
+    collector.add_box("StreetProps", "mat_tile_iznik", (bwx - 1.6, bwy - 11.32, bwz + 1.14), (0.58, 0.42, 0.08), uv_scale=0.5)
+    collector.add_box("StreetProps", "mat_bark", (bwx + 2.4, bwy - 11.45, bwz + 0.44), (1.85, 0.58, 0.08), uv_scale=0.4)
+    collector.add_box("StreetProps", "mat_bark", (bwx + 2.4, bwy - 11.20, bwz + 0.72), (1.85, 0.08, 0.42), uv_scale=0.4)
+    for bl_x in (-0.75, 0.75):
+        collector.add_box("StreetProps", "mat_iron_dark", (bwx + 2.4 + bl_x, bwy - 11.45, bwz + 0.22), (0.08, 0.54, 0.44))
 
 
 def build_region_r05_jewish_quarter(
@@ -4898,20 +5184,24 @@ def _build_western_wall_and_plaza(collector: MeshCollector, sign_atlas: Dict[str
         rz1 = pz + 0.35 + 6.85 * t1
         rz = 0.5 * (rz0 + rz1)
         g_z = street_elevation_z(rmx, -32.0)
-        col_h = max(1.8, rz - (g_z - 1.5))
-        # Timber ramp deck & 3-slat horizontal walnut timber side parapet louvers (`mat_wood_doors` `door_wood` quadrant)
-        collector.add_box("Buildings_Details", "mat_wood_doors", (rmx, -32.0, rz), (6.3, 3.6, 0.52), uv_rect=WOOD_DOOR_UV["door_wood"])
-        for plank_z in (0.42, 0.84, 1.26):
-            collector.add_box("Buildings_Details", "mat_wood_doors", (rmx, -33.7, rz + plank_z), (6.2, 0.16, 0.32), uv_rect=WOOD_DOOR_UV["door_wood"])
-            collector.add_box("Buildings_Details", "mat_wood_doors", (rmx, -30.3, rz + plank_z), (6.2, 0.16, 0.32), uv_rect=WOOD_DOOR_UV["door_wood"])
-        for rail_z in (0.30, 0.84, 1.48):
-            collector.add_box("Buildings_Details", "mat_iron_dark", (rmx, -33.82, rz + rail_z), (6.3, 0.08, 0.08))
-            collector.add_box("Buildings_Details", "mat_iron_dark", (rmx, -30.18, rz + rail_z), (6.3, 0.08, 0.08))
-        # Vertical steel truss posts & overhead shading canopy frames along all bays of the ramp
-        for sx_p in (-2.8, 0.0, 2.8):
+        # Subdivide each 6.1m bay into 3 fine 2.08m timber sub-segments so the ramp deck & louvers slope smoothly with zero step discontinuity!
+        for sub_r in range(3):
+            sr0 = rx0 + (rx1 - rx0) * (sub_r / 3.0)
+            sr1 = rx0 + (rx1 - rx0) * ((sub_r + 1) / 3.0)
+            srmx = 0.5 * (sr0 + sr1)
+            srz = rz0 + (rz1 - rz0) * ((sub_r + 0.5) / 3.0)
+            collector.add_box("Buildings_Details", "mat_wood_doors", (srmx, -32.0, srz), (2.22, 3.6, 0.52), uv_rect=WOOD_DOOR_UV["door_wood"])
+            for plank_z in (0.42, 0.84, 1.26):
+                collector.add_box("Buildings_Details", "mat_wood_doors", (srmx, -33.7, srz + plank_z), (2.20, 0.16, 0.32), uv_rect=WOOD_DOOR_UV["door_wood"])
+                collector.add_box("Buildings_Details", "mat_wood_doors", (srmx, -30.3, srz + plank_z), (2.20, 0.16, 0.32), uv_rect=WOOD_DOOR_UV["door_wood"])
+            for rail_z in (0.30, 0.84, 1.48):
+                collector.add_box("Buildings_Details", "mat_iron_dark", (srmx, -33.82, srz + rail_z), (2.22, 0.08, 0.08))
+                collector.add_box("Buildings_Details", "mat_iron_dark", (srmx, -30.18, srz + rail_z), (2.22, 0.08, 0.08))
+            collector.add_box("Buildings_Details", "mat_stone_mizzi", (srmx, -32.0, srz + 2.75), (2.22, 3.8, 0.16), uv_scale=0.4, bottom_face=True)
+        # Vertical steel truss posts along all bays of the ramp
+        for sx_p, post_dz in ((-2.8, -0.22), (0.0, 0.0), (2.8, 0.22)):
             for sy_p in (-1.75, 1.75):
-                collector.add_box("Buildings_Details", "mat_iron_dark", (rmx + sx_p, -32.0 + sy_p, rz + 1.45), (0.10, 0.10, 2.5))
-        collector.add_box("Buildings_Details", "mat_stone_mizzi", (rmx, -32.0, rz + 2.75), (6.3, 3.8, 0.16), uv_scale=0.4, bottom_face=True)
+                collector.add_box("Buildings_Details", "mat_iron_dark", (rmx + sx_p, -32.0 + sy_p, rz + post_dz + 1.45), (0.10, 0.10, 2.5))
         # Grounded steel support piers + horizontal cross-beams + symmetrical above-ground X-bracing struts (`g_z + 0.35 .. rz - 0.38`)
         for px_col, p_rz in ((rx0 + 0.55, rz0), (rx1 - 0.55, rz1)):
             p_col_h = max(1.6, p_rz - (g_z - 1.5))
@@ -5190,11 +5480,40 @@ def _build_temple_mount_monuments(collector: MeshCollector, sign_atlas: Dict[str
                 segments=10,
                 cap_end=True,
             )
+            # Multi-tier carved Corinthian / Mamluk flaring stone capital (`z_up + 3.12 .. 3.55m`) + moulded abacus
+            collector.add_branch_tube(
+                "Buildings_Details",
+                "mat_stone_boss",
+                (cx_m, cy_m, z_up + 3.10),
+                (cx_m, cy_m, z_up + 3.22),
+                0.33,
+                0.35,
+                segments=10,
+                cap_end=True,
+            )
+            collector.add_branch_tube(
+                "Buildings_Details",
+                "mat_stone_mizzi",
+                (cx_m, cy_m, z_up + 3.20),
+                (cx_m, cy_m, z_up + 3.44),
+                0.32,
+                0.44,
+                segments=8,
+                smooth=False,
+                cap_end=True,
+            )
             collector.add_box(
                 "Buildings_Details",
                 "mat_stone_boss",
-                (cx_m, cy_m, z_up + 3.45),
-                (0.76, 0.76, 0.36),
+                (cx_m, cy_m, z_up + 3.48),
+                (0.82, 0.82, 0.24),
+                uv_scale=0.35,
+            )
+            collector.add_box(
+                "Buildings_Details",
+                "mat_stone_mizzi",
+                (cx_m, cy_m, z_up + 3.62),
+                (0.90, 0.90, 0.14),
                 uv_scale=0.35,
             )
             # Carved Mamluk circular spandrel medallion (`rosette`) above the two inner columns
@@ -5219,7 +5538,7 @@ def _build_temple_mount_monuments(collector: MeshCollector, sign_atlas: Dict[str
             add_arch_voussoirs(
                 collector,
                 "Buildings_Details",
-                "mat_stone_mizzi",
+                "mat_terracotta" if a_i == 1 else "mat_stone_mizzi",
                 (ax_m, ay_m, z_up + 3.55),
                 (tx, ty),
                 (nx_m, ny_m),
@@ -5229,6 +5548,20 @@ def _build_temple_mount_monuments(collector: MeshCollector, sign_atlas: Dict[str
                 offset_n0=-0.42,
                 offset_n1=0.42,
                 num_voussoirs=7,
+            )
+            add_arch_voussoirs(
+                collector,
+                "Buildings_Details",
+                "mat_stone_boss",
+                (ax_m, ay_m, z_up + 3.63),
+                (tx, ty),
+                (nx_m, ny_m),
+                span_w=span_m + 0.36,
+                arch_h=1.28,
+                ring_thickness=0.18,
+                offset_n0=-0.44,
+                offset_n1=0.44,
+                num_voussoirs=9,
             )
             collector.add_box("StreetProps", "mat_dome_gold", (ax_m, ay_m, z_up + 4.25), (0.04, 0.04, 0.75))
             collector.add_box("StreetProps", "mat_lantern_glow", (ax_m, ay_m, z_up + 3.75), (0.26, 0.26, 0.34), bottom_face=True)
@@ -5899,8 +6232,8 @@ def _build_temple_mount_monuments(collector: MeshCollector, sign_atlas: Dict[str
     )
     collector.add_box("Buildings_Details", "mat_dome_gold", (ax, -28.0, z_esp + 32.1), (0.28, 0.28, 1.9), uv_scale=0.5)
 
-    # 8. Five Mamluk Minarets around the Haram al-Sharif perimeter (including Bab al-Silsila Minaret at `(671.8, 146.0)` framing the left horizon of `dome_of_the_rock_south`!)
-    for mx_m, my_m in ((671.8, 146.0), (670.5, 184.0), (668.5, 68.0), (672.0, -76.0), (675.0, 376.0), (855.0, 382.0)):
+    # 8. Six Mamluk Minarets around the Haram al-Sharif perimeter (including Bab al-Silsila Minaret at `(678.0, 128.0)` framing the left horizon of `dome_of_the_rock_south` while keeping the `y = 145.0` Suq al-Qattanin sky slot 100% open!)
+    for mx_m, my_m in ((678.0, 128.0), (670.5, 184.0), (668.5, 68.0), (672.0, -76.0), (675.0, 376.0), (855.0, 382.0)):
         collector.add_box("Buildings_Walls", "mat_stone_mizzi", (mx_m, my_m, z_esp + 11.5), (4.8, 4.8, 23.0), uv_scale=0.25)
         collector.add_box("Buildings_Details", "mat_stone_boss", (mx_m, my_m, z_esp + 23.4), (5.8, 5.8, 0.90), uv_scale=0.30)
         # Upper colonnaded muezzin pavilion gallery + 4 corner columns + canopy & lead dome
@@ -6015,12 +6348,20 @@ def _build_temple_mount_monuments(collector: MeshCollector, sign_atlas: Dict[str
     for md_y in (228.0, 256.0, 284.0):
         collector.add_dome("Buildings_Details", "mat_stone_mizzi", (671.6, md_y, z_esp + 13.85), radius=2.6, height=2.2, rings=6, segments=12)
     for rw_y in range(218, 302, 7):
-        # Deeply recessed shaded stone vault opening inside each Riwaq arch (`mat_iron_dark` recessed `0.35m` behind the arch ring!)
+        # Projecting stone pier between adjacent Riwaq bays (`rw_y + 3.5`)
+        collector.add_box(
+            "Buildings_Details",
+            "mat_stone_boss",
+            (673.76, float(rw_y) + 3.5, z_esp + 2.5),
+            (0.42, 0.88, 5.0),
+            uv_scale=0.30,
+        )
+        # Deeply shaded stone vault opening proud of the East (`x = 673.70`) Riwaq wall face (`x = 673.73`)
         add_arched_opening_panel(
             collector,
             "Buildings_Openings",
             "mat_iron_dark",
-            (673.45, float(rw_y)),
+            (673.73, float(rw_y)),
             z_esp,
             z_esp + 2.8,
             1.35,
@@ -6035,15 +6376,15 @@ def _build_temple_mount_monuments(collector: MeshCollector, sign_atlas: Dict[str
         add_arch_voussoirs(
             collector,
             "Buildings_Details",
-            "mat_stone_boss",
-            (673.72, float(rw_y), z_esp + 2.8),
+            "mat_terracotta" if (rw_y // 7) % 2 == 0 else "mat_stone_boss",
+            (673.78, float(rw_y), z_esp + 2.8),
             (0.0, 1.0),
             (1.0, 0.0),
             span_w=2.70,
             arch_h=1.35,
-            ring_thickness=0.36,
-            offset_n0=-0.28,
-            offset_n1=0.24,
+            ring_thickness=0.38,
+            offset_n0=-0.12,
+            offset_n1=0.26,
             num_voussoirs=7,
         )
         # Upper-storey Mamluk Madrasa arched window (`z = z_esp + 9.8 .. 12.1m`) with Ablaq voussoirs & paired shutters
@@ -6499,21 +6840,26 @@ def _build_muslim_quarter_landmarks(collector: MeshCollector, sign_atlas: Dict[s
     # 3. Austrian Hospice (`(448.0, 412.0)`) & Via Dolorosa Station III at the Via Dolorosa / El-Wad Corner
     ah_x, ah_y = 448.0, 412.0
     ah_z = street_elevation_z(ah_x, ah_y)
-    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (ah_x, ah_y, ah_z + 6.2), (24.0, 18.0, 12.4), uv_scale=0.22)
-    collector.add_box("Buildings_Details", "mat_stone_boss", (ah_x, ah_y, ah_z + 5.05), (24.3, 18.3, 0.26), uv_scale=0.30)
-    collector.add_box("Buildings_Details", "mat_terracotta", (ah_x, ah_y, ah_z + 12.5), (24.6, 18.6, 0.45), uv_scale=0.30)
+    portal_z = street_elevation_z(ah_x - 13.0, ah_y)
+    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (ah_x, ah_y, portal_z + 6.4), (24.0, 18.0, 13.2), uv_scale=0.22)
+    collector.add_box("Buildings_Details", "mat_stone_boss", (ah_x, ah_y, portal_z + 5.35), (24.3, 18.3, 0.26), uv_scale=0.30)
+    collector.add_box("Buildings_Details", "mat_terracotta", (ah_x, ah_y, portal_z + 13.1), (24.6, 18.6, 0.45), uv_scale=0.30)
     # Western & Southern arched windows + wrought-iron balcony + Station III Chapel Portal facing `(422, 398)`
     for wy_off in (-5.2, 0.0, 5.2):
-        for wz_lvl, is_portal in ((0.0, wy_off == 0.0), (5.8, False)):
+        for wz_lvl, is_portal in ((0.0, wy_off == 0.0), (5.65, False)):
+            z0_w = (portal_z + 0.42) if is_portal else (portal_z + wz_lvl + 1.05)
+            z_spring_w = (portal_z + 2.48) if is_portal else (portal_z + wz_lvl + 3.55)
+            arch_h_w = 0.98 if is_portal else 1.05
+            span_w_w = 2.04 if is_portal else 2.15
             add_arched_opening_panel(
                 collector,
                 "Buildings_Openings",
                 "mat_wood_doors",
                 (ah_x - 12.01, ah_y + wy_off),
-                ah_z + (0.0 if is_portal else wz_lvl + 1.2),
-                ah_z + (3.2 if is_portal else wz_lvl + 3.8),
-                1.10,
-                2.20,
+                z0_w,
+                z_spring_w,
+                arch_h_w,
+                span_w_w,
                 0.01,
                 (0.0, -1.0),
                 (-1.0, 0.0),
@@ -6525,12 +6871,12 @@ def _build_muslim_quarter_landmarks(collector: MeshCollector, sign_atlas: Dict[s
                 collector,
                 "Buildings_Details",
                 "mat_stone_boss",
-                (ah_x - 12.01, ah_y + wy_off, ah_z + (3.2 if is_portal else wz_lvl + 3.8)),
+                (ah_x - 12.01, ah_y + wy_off, z_spring_w),
                 (0.0, -1.0),
                 (-1.0, 0.0),
-                span_w=2.20,
-                arch_h=1.10,
-                ring_thickness=0.34,
+                span_w=span_w_w,
+                arch_h=arch_h_w,
+                ring_thickness=0.32,
                 offset_n0=-0.04,
                 offset_n1=0.20,
                 num_voussoirs=7,
@@ -6539,18 +6885,18 @@ def _build_muslim_quarter_landmarks(collector: MeshCollector, sign_atlas: Dict[s
                 collector.add_box(
                     "Buildings_Details",
                     "mat_stone_mizzi",
-                    (ah_x - 12.14, ah_y + wy_off, ah_z + wz_lvl + 1.12),
-                    (0.24, 2.45, 0.16),
+                    (ah_x - 12.14, ah_y + wy_off, z0_w - 0.08),
+                    (0.24, 2.42, 0.16),
                     uv_scale=0.35,
                 )
-                for sh_s in (-1.34, 1.34):
+                for sh_s in (-1.32, 1.32):
                     add_arched_opening_panel(
                         collector,
                         "Buildings_Openings",
                         "mat_wood_doors",
                         (ah_x - 12.08, ah_y + wy_off + sh_s),
-                        ah_z + wz_lvl + 1.22,
-                        ah_z + wz_lvl + 3.75,
+                        z0_w + 0.02,
+                        z_spring_w - 0.04,
                         0.02,
                         0.44,
                         0.03,
@@ -6560,34 +6906,37 @@ def _build_muslim_quarter_landmarks(collector: MeshCollector, sign_atlas: Dict[s
                         num_voussoirs=2,
                         add_wall_spandrel=False,
                     )
-    # Moulded stone balcony slab (`ah_z + 5.05m`) on 4 stone corbels + openwork wrought-iron railing + Austrian flag
-    collector.add_box("Buildings_Details", "mat_stone_mizzi", (ah_x - 12.62, ah_y, ah_z + 5.05), (1.25, 6.4, 0.26), uv_scale=0.35, bottom_face=True)
-    for cb_y in (-2.6, -0.9, 0.9, 2.6):
-        collector.add_box("Buildings_Details", "mat_stone_boss", (ah_x - 12.42, ah_y + cb_y, ah_z + 4.72), (0.82, 0.28, 0.42), uv_scale=0.35, bottom_face=True)
-    collector.add_box("StreetProps", "mat_iron_dark", (ah_x - 13.18, ah_y, ah_z + 5.98), (0.08, 6.3, 0.08))
-    collector.add_box("StreetProps", "mat_iron_dark", (ah_x - 13.18, ah_y, ah_z + 5.55), (0.06, 6.3, 0.06))
+    # Moulded stone balcony slab (`portal_z + 5.35m`) on 4 stone corbels (`portal_z + 5.02m` — >1.2m clear above portal arch!) + openwork wrought-iron railing + Austrian flag
+    collector.add_box("Buildings_Details", "mat_stone_mizzi", (ah_x - 12.62, ah_y, portal_z + 5.35), (1.25, 6.4, 0.26), uv_scale=0.35, bottom_face=True)
+    for cb_y in (-2.6, -0.95, 0.95, 2.6):
+        collector.add_box("Buildings_Details", "mat_stone_boss", (ah_x - 12.42, ah_y + cb_y, portal_z + 5.02), (0.82, 0.28, 0.40), uv_scale=0.35, bottom_face=True)
+    collector.add_box("StreetProps", "mat_iron_dark", (ah_x - 13.18, ah_y, portal_z + 6.28), (0.08, 6.3, 0.08))
+    collector.add_box("StreetProps", "mat_iron_dark", (ah_x - 13.18, ah_y, portal_z + 5.85), (0.06, 6.3, 0.06))
     for rp_y in (-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0):
-        collector.add_box("StreetProps", "mat_iron_dark", (ah_x - 13.18, ah_y + rp_y, ah_z + 5.56), (0.07, 0.07, 0.88))
+        collector.add_box("StreetProps", "mat_iron_dark", (ah_x - 13.18, ah_y + rp_y, portal_z + 5.86), (0.07, 0.07, 0.88))
     # Red-white-red Austrian Flag flying above the balcony
-    collector.add_branch_tube("StreetProps", "mat_iron_dark", (ah_x - 12.1, ah_y, ah_z + 6.2), (ah_x - 13.8, ah_y, ah_z + 7.6), 0.05, 0.04, segments=6)
-    collector.add_box("StreetProps", "mat_awning_red", (ah_x - 13.5, ah_y + 0.05, ah_z + 7.05), (0.95, 0.06, 0.66), uv_scale=0.5)
-    collector.add_box("StreetProps", "mat_stone_mizzi", (ah_x - 13.5, ah_y + 0.05, ah_z + 7.05), (0.96, 0.08, 0.22), uv_scale=0.5)
-    # Double exterior entrance steps & wrought-iron handrails at the Austrian Hospice portal (`(435.5, 412.0)`)
-    collector.add_box("Ground_Steps", "mat_stone_mizzi", (ah_x - 12.65, ah_y, ah_z + 0.16), (1.3, 3.6, 0.32), uv_scale=0.35)
-    collector.add_box("Ground_Steps", "mat_stone_mizzi", (ah_x - 13.15, ah_y, ah_z + 0.08), (2.2, 4.2, 0.16), uv_scale=0.35)
-    for hr_dy in (-1.85, 1.85):
-        collector.add_branch_tube("StreetProps", "mat_iron_dark", (ah_x - 12.05, ah_y + hr_dy, ah_z + 1.05), (ah_x - 14.1, ah_y + hr_dy, ah_z + 0.82), 0.04, 0.04, segments=6)
-        collector.add_box("StreetProps", "mat_iron_dark", (ah_x - 14.05, ah_y + hr_dy, ah_z + 0.42), (0.07, 0.07, 0.84))
-    # Station III Polish Chapel Arched Relief Portal adjacent to the Austrian Hospice (`(436.0, 402.2)`, facing SW)
-    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (436.0, 401.8, ah_z + 3.4), (5.2, 4.8, 6.8), uv_scale=0.25)
-    collector.add_box("Buildings_Details", "mat_stone_boss", (436.0, 401.8, ah_z + 6.95), (5.6, 5.2, 0.35), uv_scale=0.30)
+    collector.add_branch_tube("StreetProps", "mat_iron_dark", (ah_x - 12.1, ah_y, portal_z + 6.5), (ah_x - 13.8, ah_y, portal_z + 7.9), 0.05, 0.04, segments=6)
+    collector.add_box("StreetProps", "mat_awning_red", (ah_x - 13.5, ah_y + 0.05, portal_z + 7.35), (0.95, 0.06, 0.66), uv_scale=0.5)
+    collector.add_box("StreetProps", "mat_stone_mizzi", (ah_x - 13.5, ah_y + 0.05, portal_z + 7.35), (0.96, 0.08, 0.22), uv_scale=0.5)
+    # 3-Step Jerusalem-stone exterior entrance stairs (`z = portal_z + 0.08 .. 0.44m`, width `2.6m` centered on doorway) + flanking stone cheek walls & wrought-iron handrails (`hr_dy in (-1.38, 1.38)`, 100% clear of windows & door!)
+    collector.add_box("Ground_Steps", "mat_stone_mizzi", (ah_x - 12.45, ah_y, portal_z + 0.22), (0.95, 2.6, 0.44), uv_scale=0.35)
+    collector.add_box("Ground_Steps", "mat_stone_mizzi", (ah_x - 12.95, ah_y, portal_z + 0.15), (1.85, 2.8, 0.30), uv_scale=0.35)
+    collector.add_box("Ground_Steps", "mat_stone_mizzi", (ah_x - 13.45, ah_y, portal_z + 0.08), (2.75, 3.0, 0.16), uv_scale=0.35)
+    for hr_dy in (-1.42, 1.42):
+        collector.add_box("Ground_Steps", "mat_stone_boss", (ah_x - 12.95, ah_y + hr_dy, portal_z + 0.28), (1.95, 0.22, 0.56), uv_scale=0.35)
+        collector.add_branch_tube("StreetProps", "mat_iron_dark", (ah_x - 12.05, ah_y + hr_dy, portal_z + 1.18), (ah_x - 13.85, ah_y + hr_dy, portal_z + 0.88), 0.04, 0.04, segments=6)
+        collector.add_box("StreetProps", "mat_iron_dark", (ah_x - 13.80, ah_y + hr_dy, portal_z + 0.46), (0.07, 0.07, 0.88))
+    # Station III Polish Chapel Arched Relief Portal adjacent to the Austrian Hospice (`(436.0, 401.8)`, facing West)
+    st3_z = street_elevation_z(433.4, 401.8)
+    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (436.0, 401.8, st3_z + 3.4), (5.2, 4.8, 6.8), uv_scale=0.25)
+    collector.add_box("Buildings_Details", "mat_stone_boss", (436.0, 401.8, st3_z + 6.95), (5.6, 5.2, 0.35), uv_scale=0.30)
     add_arched_opening_panel(
         collector,
         "Buildings_Openings",
         "mat_wood_doors",
         (433.39, 401.8),
-        ah_z,
-        ah_z + 2.6,
+        st3_z,
+        st3_z + 2.6,
         1.05,
         2.10,
         0.01,
@@ -6601,7 +6950,7 @@ def _build_muslim_quarter_landmarks(collector: MeshCollector, sign_atlas: Dict[s
         collector,
         "Buildings_Details",
         "mat_stone_boss",
-        (433.39, 401.8, ah_z + 2.6),
+        (433.39, 401.8, st3_z + 2.6),
         (0.0, -1.0),
         (-1.0, 0.0),
         span_w=2.10,
@@ -6611,9 +6960,13 @@ def _build_muslim_quarter_landmarks(collector: MeshCollector, sign_atlas: Dict[s
         offset_n1=0.22,
         num_voussoirs=7,
     )
-    # Carved semicircular stone tympanum relief plaque above Station III portal + rooftop domes along El-Wad
-    collector.add_box("Buildings_Details", "mat_stone_boss", (433.26, 401.8, ah_z + 4.35), (0.24, 2.05, 1.02), uv_scale=0.35)
-    collector.add_box("Buildings_Details", "mat_stone_mizzi", (433.18, 401.8, ah_z + 4.35), (0.16, 1.75, 0.78), uv_scale=0.35)
+    # Carved semicircular stone tympanum relief plaque above Station III portal (with 3D carved cross & kneeling figure relief) + bollards + rooftop domes along El-Wad
+    collector.add_box("Buildings_Details", "mat_stone_boss", (433.26, 401.8, st3_z + 4.35), (0.24, 2.05, 1.02), uv_scale=0.35)
+    collector.add_box("Buildings_Details", "mat_stone_mizzi", (433.18, 401.8, st3_z + 4.35), (0.16, 1.75, 0.78), uv_scale=0.35)
+    collector.add_box("Buildings_Details", "mat_stone_boss", (433.11, 401.8, st3_z + 4.38), (0.10, 0.14, 0.58), uv_scale=0.4)
+    collector.add_box("Buildings_Details", "mat_stone_boss", (433.11, 401.8, st3_z + 4.48), (0.10, 0.46, 0.12), uv_scale=0.4)
+    for b_st3_y in (405.2, 408.0, 415.8):
+        build_bollard(collector, 431.2, b_st3_y, street_elevation_z(431.2, b_st3_y))
     for ew_x, ew_y in ((416.0, 382.0), (414.0, 366.0)):
         collector.add_dome("Buildings_Details", "mat_stone_ashlar_aged", (ew_x, ew_y, street_elevation_z(ew_x, ew_y) + 9.6), radius=2.2, height=1.6, rings=5, segments=10)
 
@@ -7005,16 +7358,110 @@ def build_region_r08_muslim_quarter_north_gates(
         else:
             build_olive_tree(collector, tx, ty, tz, height=th, seed=seed, with_kerb=True)
 
-    # Damascus Gate Inner Fork Market Stalls, Flanking Arched Shop Wings, Spice Displays & Bollards (`(245..276, 518..542)`)
-    for sw_x, sw_y, sw_rot, sw_nx, sw_ny in (
+    # Damascus Gate Inner Fork Market Stalls, Flanking 2-Storey Arched Bazaar Wings, Spice Displays & Bollards (`(245..276, 518..542)`)
+    for sw_idx, (sw_x, sw_y, sw_rot, sw_nx, sw_ny) in enumerate((
         (244.5, 535.0, -18.0, 0.951, 0.309),
         (277.5, 532.0, 18.0, -0.951, 0.309),
-    ):
+    )):
         sw_z = street_elevation_z(sw_x, sw_y)
         sw_rad = math.radians(sw_rot)
+        sw_tx, sw_ty = -sw_ny, sw_nx
         collector.add_box("Buildings_Walls", "mat_stone_mizzi", (sw_x, sw_y, sw_z + 4.1), (4.8, 12.4, 8.2), rot_z=sw_rad, uv_scale=0.24)
+        collector.add_box("Buildings_Details", "mat_stone_boss", (sw_x, sw_y, sw_z + 4.25), (5.05, 12.6, 0.26), rot_z=sw_rad, uv_scale=0.30)
         collector.add_box("Buildings_Details", "mat_stone_boss", (sw_x, sw_y, sw_z + 8.35), (5.2, 12.8, 0.38), rot_z=sw_rad, uv_scale=0.30)
-        build_wall_lantern(collector, (sw_x + sw_nx * 2.45, sw_y + sw_ny * 2.45, sw_z + 3.4), (-sw_ny, sw_nx), (sw_nx, sw_ny))
+        collector.add_dome("Buildings_Details", "mat_stone_ashlar_aged", (sw_x, sw_y, sw_z + 8.45), radius=2.1, height=1.65, rings=5, segments=10)
+        for bay_t in (-3.6, 0.0, 3.6):
+            bx_sw = sw_x + sw_nx * 2.42 + sw_tx * bay_t
+            by_sw = sw_y + sw_ny * 2.42 + sw_ty * bay_t
+            # Ground-floor arched shopfront + voussoirs + sloped shop awning
+            add_arched_opening_panel(
+                collector,
+                "Buildings_Openings",
+                "mat_wood_doors",
+                (bx_sw, by_sw),
+                sw_z,
+                sw_z + 2.35,
+                0.85,
+                1.85,
+                0.01,
+                (sw_tx, sw_ty),
+                (sw_nx, sw_ny),
+                uv_rect=WOOD_DOOR_UV["door_wood" if bay_t == 0.0 else "window_glass"],
+                num_voussoirs=7,
+                add_wall_spandrel=False,
+            )
+            add_arch_voussoirs(
+                collector,
+                "Buildings_Details",
+                "mat_terracotta" if bay_t == 0.0 else "mat_stone_boss",
+                (bx_sw, by_sw, sw_z + 2.35),
+                (sw_tx, sw_ty),
+                (sw_nx, sw_ny),
+                span_w=1.85,
+                arch_h=0.85,
+                ring_thickness=0.28,
+                offset_n0=-0.04,
+                offset_n1=0.18,
+                num_voussoirs=7,
+            )
+            collector.add_box(
+                "StreetProps",
+                ("mat_awning_striped", "mat_awning_red", "mat_awning_green")[int(abs(bay_t) + sw_idx) % 3],
+                (bx_sw + sw_nx * 0.48, by_sw + sw_ny * 0.48, sw_z + 3.40),
+                (0.95, 2.05, 0.14),
+                rot_z=sw_rad,
+                uv_scale=0.5,
+                bottom_face=True,
+            )
+            # Upper-storey arched window + sill + paired louvred shutters
+            add_arched_opening_panel(
+                collector,
+                "Buildings_Openings",
+                "mat_wood_doors",
+                (bx_sw, by_sw),
+                sw_z + 4.85,
+                sw_z + 6.65,
+                0.62,
+                1.24,
+                0.01,
+                (sw_tx, sw_ty),
+                (sw_nx, sw_ny),
+                uv_rect=WOOD_DOOR_UV["window_glass"],
+                num_voussoirs=5,
+                add_wall_spandrel=False,
+            )
+            add_arch_voussoirs(
+                collector,
+                "Buildings_Details",
+                "mat_stone_boss",
+                (bx_sw, by_sw, sw_z + 6.65),
+                (sw_tx, sw_ty),
+                (sw_nx, sw_ny),
+                span_w=1.24,
+                arch_h=0.62,
+                ring_thickness=0.24,
+                offset_n0=-0.04,
+                offset_n1=0.16,
+                num_voussoirs=5,
+            )
+            for sh_sw in (-0.82, 0.82):
+                add_arched_opening_panel(
+                    collector,
+                    "Buildings_Openings",
+                    "mat_wood_doors",
+                    (bx_sw + sw_tx * sh_sw + sw_nx * 0.04, by_sw + sw_ty * sh_sw + sw_ny * 0.04),
+                    sw_z + 4.88,
+                    sw_z + 6.60,
+                    0.02,
+                    0.34,
+                    0.02,
+                    (sw_tx, sw_ty),
+                    (sw_nx, sw_ny),
+                    uv_rect=WOOD_DOOR_UV["shutter_louvre"],
+                    num_voussoirs=2,
+                    add_wall_spandrel=False,
+                )
+        build_wall_lantern(collector, (sw_x + sw_nx * 2.48, sw_y + sw_ny * 2.48, sw_z + 3.85), (sw_tx, sw_ty), (sw_nx, sw_ny))
     for st_idx, (st_x, st_y, st_rot) in enumerate((
         (253.5, 528.0, 15.0),
         (267.5, 526.0, -25.0),
