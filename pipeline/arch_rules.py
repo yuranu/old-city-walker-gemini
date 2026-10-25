@@ -649,36 +649,37 @@ def build_upper_window_bay(
         keystone_boost=0.04,
     )
 
-    # 4. Projecting stone window sill + optional twin stone corbel brackets
-    sill_p0 = pt_at(u_left - frame_w - 0.04)
-    sill_p1 = pt_at(u_right + frame_w + 0.04)
-    collector.add_oriented_box(
-        "Buildings_Details",
-        trim_mat,
-        sill_p0,
-        sill_p1,
-        sill_z - 0.09,
-        sill_z,
-        -recess,
-        0.15,
-        normal_xy,
-        cap_bottom=True,
-    )
-    if has_corbels:
-        for corbel_u in (u_left - 0.02, u_right - 0.08):
-            collector.add_oriented_box(
-                "Buildings_Details",
-                trim_mat,
-                pt_at(corbel_u),
-                pt_at(corbel_u + 0.10),
-                sill_z - 0.24,
-                sill_z - 0.09,
-                0.0,
-                0.11,
-                normal_xy,
-                cap_top=False,
-                cap_bottom=True,
-            )
+    # 4. Projecting stone window sill + optional twin stone corbel brackets (only on non-balcony windows; balcony windows use the full balcony slab!)
+    if not has_balcony:
+        sill_p0 = pt_at(u_left - frame_w - 0.04)
+        sill_p1 = pt_at(u_right + frame_w + 0.04)
+        collector.add_oriented_box(
+            "Buildings_Details",
+            trim_mat,
+            sill_p0,
+            sill_p1,
+            sill_z - 0.09,
+            sill_z,
+            -recess,
+            0.15,
+            normal_xy,
+            cap_bottom=True,
+        )
+        if has_corbels:
+            for corbel_u in (u_left - 0.02, u_right - 0.08):
+                collector.add_oriented_box(
+                    "Buildings_Details",
+                    trim_mat,
+                    pt_at(corbel_u),
+                    pt_at(corbel_u + 0.10),
+                    sill_z - 0.24,
+                    sill_z - 0.09,
+                    0.0,
+                    0.11,
+                    normal_xy,
+                    cap_top=False,
+                    cap_bottom=True,
+                )
 
     # 5. Recessed Window Glass Pane (`window_glass` quadrant) + 2 Thin Single Front Mullion Quads (2 faces)
     glass_d = -recess + 0.04
@@ -752,11 +753,13 @@ def build_upper_window_bay(
     if has_balcony:
         bal_p0 = pt_at(u_left - 0.28)
         bal_p1 = pt_at(u_right + 0.28)
-        collector.add_oriented_box("Buildings_Details", trim_mat, bal_p0, bal_p1, sill_z - 0.14, sill_z, -recess, 0.72, normal_xy, cap_bottom=True)
-        b_w0 = (bal_p0[0] + nx * 0.04, bal_p0[1] + ny * 0.04, sill_z)
-        b_w1 = (bal_p1[0] + nx * 0.04, bal_p1[1] + ny * 0.04, sill_z)
-        b_c0 = (bal_p0[0] + nx * 0.68, bal_p0[1] + ny * 0.68, sill_z)
-        b_c1 = (bal_p1[0] + nx * 0.68, bal_p1[1] + ny * 0.68, sill_z)
+        collector.add_oriented_box("Buildings_Details", "mat_stone_mizzi", bal_p0, bal_p1, sill_z - 0.135, sill_z + 0.015, 0.02, 0.76, normal_xy, cap_top=True, cap_bottom=True)
+        for cb_u in (u_left - 0.12, u_right - 0.06):
+            collector.add_oriented_box("Buildings_Details", "mat_stone_boss", pt_at(cb_u), pt_at(cb_u + 0.18), sill_z - 0.38, sill_z - 0.14, 0.03, 0.56, normal_xy, cap_top=False, cap_bottom=True)
+        b_w0 = (bal_p0[0] + nx * 0.04, bal_p0[1] + ny * 0.04, sill_z + 0.015)
+        b_w1 = (bal_p1[0] + nx * 0.04, bal_p1[1] + ny * 0.04, sill_z + 0.015)
+        b_c0 = (bal_p0[0] + nx * 0.68, bal_p0[1] + ny * 0.68, sill_z + 0.015)
+        b_c1 = (bal_p1[0] + nx * 0.68, bal_p1[1] + ny * 0.68, sill_z + 0.015)
         build_iron_railing(collector, b_c0, b_c1, height=0.86, picket_spacing=0.28)
         build_iron_railing(collector, b_w0, b_c0, height=0.86, picket_spacing=0.28)
         build_iron_railing(collector, b_c1, b_w1, height=0.86, picket_spacing=0.28)
@@ -1566,8 +1569,9 @@ def build_building_from_footprint(
                 for b_idx in range(num_bays):
                     b_p0 = (c_left[0] + tx * (b_idx * bay_w), c_left[1] + ty * (b_idx * bay_w))
                     b_p1 = (c_left[0] + tx * ((b_idx + 1) * bay_w), c_left[1] + ty * ((b_idx + 1) * bay_w))
-                    if bay_w >= 1.85 and bay_clear_flags[b_idx]:
-                        use_balcony = all_upper_balconies or (is_hero and lvl == 1 and b_idx == num_bays // 2)
+                    is_stepback_over_pavilion = (building_id == 7002 and (nx < -0.5 or wall_my > 16.0))
+                    if bay_w >= 1.85 and bay_clear_flags[b_idx] and not (is_stepback_over_pavilion and lvl == 1):
+                        use_balcony = (all_upper_balconies or (is_hero and lvl == 1 and b_idx == num_bays // 2)) and not is_stepback_over_pavilion
                         build_upper_window_bay(
                             collector,
                             b_p0,
