@@ -199,7 +199,7 @@ def classify_region(x: float, y: float) -> str:
         return "r07_temple_mount"
 
     # 3. r06_western_wall_dung_gate: Western Wall Plaza, Mughrabi Bridge, Dung Gate, Southern Wall
-    if x >= 555.0 and y < 65.0:
+    if x >= 475.0 and y < 65.0:
         return "r06_western_wall_dung_gate"
 
     # 4. r08_muslim_quarter_north_gates: Muslim Quarter, Via Dolorosa, Damascus Gate, Herod's Gate, Lions' Gate

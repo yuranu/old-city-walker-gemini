@@ -719,6 +719,8 @@ def build_single_region(
                 is_hero=False,
             )
             built_osm_count += 1
+        from regions_builder import build_over_street_bridge_buildings
+        build_over_street_bridge_buildings(collector, osm_old_city, "r01_jaffa_gate")
         populate_street_props_and_trees(collector, osm_jaffa.get("trees", []))
         elev_fn = street_elevation_z
     elif region_id == "r02_christian_quarter":
