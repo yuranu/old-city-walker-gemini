@@ -67,8 +67,8 @@ EXACT_RESERVE_RECTS: List[Tuple[float, float, float, float]] = [
     # 7. Southern Roman Cardo Colonnade (`299.5..317.0, -190.0..-56.0`) & Crusader Vaulted Triple Souq (`297.5..323.5, -36.0..121.0`)
     (299.5, -190.0, 317.0, -56.0),
     (297.5, -36.0, 323.5, 121.0),
-    # 8. Mamluk Turba West (`438.5..456.0, 24.5..36.5`), Mamluk Turba East (`516.5..533.5, 39.0..51.0`), Suq al-Qattanin (`522.0..614.0, 139.0..155.0`), & Western Wall / Beit Strauss (`588.0..668.0, -36.0..65.5`)
-    (438.5, 24.5, 456.0, 36.5),
+    # 8. Mamluk Turba West (`439.5..456.2, 26.5..38.0`), Mamluk Turba East (`516.5..533.5, 39.0..51.0`), Suq al-Qattanin (`522.0..614.0, 139.0..155.0`), & Western Wall / Beit Strauss (`588.0..668.0, -36.0..65.5`)
+    (439.5, 26.5, 456.2, 38.0),
     (516.5, 39.0, 533.5, 51.0),
     (522.0, 139.0, 614.0, 155.0),
     (588.0, -36.0, 643.0, 34.0),
@@ -515,6 +515,9 @@ def main() -> None:
     # 2. East exit of r01 David St (`x=158.0, y=2.0`) -> Christian Quarter St (`x=162.2, y=15.3`), Saint Mark St (`x=164.3, y=6.9`), & r03 David St (`x=168.0, y=12.6`)
     carve_geoms.append(LineString([(154.0, 2.0), (162.5, 2.0), (162.5, 13.0), (171.0, 13.0)]).buffer(2.85, cap_style=1, join_style=1))
     carve_geoms.append(LineString([(165.5, -16.0), (164.3, 6.9), (162.2, 15.3), (161.0, 32.0)]).buffer(2.45, cap_style=1, join_style=1))
+    # 3. Muristan North Market Gateway (`(235.0, 154.0)`) & Suq Aftimos (`(232.0, 128.0) -> (241.5, 149.1) -> (242.2, 161.5)`)
+    carve_geoms.append(LineString([(232.0, 128.0), (235.0, 144.0), (235.0, 157.5), (242.2, 161.5)]).buffer(3.15, cap_style=1, join_style=1))
+    carve_geoms.append(LineString([(232.0, 128.0), (241.5, 149.1), (242.2, 161.5)]).buffer(2.45, cap_style=1, join_style=1))
 
     # Ensure the 29 official POI viewpoints in places.json are not inside a building
     places_path = root / "public" / "data" / "places.json"
