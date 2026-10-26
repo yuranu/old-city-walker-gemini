@@ -811,12 +811,15 @@ def main() -> None:
     all_region_ids = [
         "r01_jaffa_gate",
         "r02_christian_quarter",
+        "r02b_christian_quarter_east",
         "r03_central_souqs",
+        "r03b_central_souqs_east",
         "r04_armenian_quarter",
         "r05_jewish_quarter",
         "r06_western_wall_dung_gate",
         "r07_temple_mount",
         "r08_muslim_quarter_north_gates",
+        "r08b_muslim_quarter_central",
         "r09_muslim_quarter_east",
     ]
     target_regions = ["r01_jaffa_gate"]

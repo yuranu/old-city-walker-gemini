@@ -1263,10 +1263,11 @@ async function initApp() {
   const loaderFill = document.getElementById('loader-bar-fill');
   const loaderStatus = document.getElementById('loader-status');
 
+  const ASSET_VER = 'v=city360';
   const [rawPlacesData, rawManifestData, rawCityPlanData] = await Promise.all([
-    fetchJsonSafe('/data/places.json', null),
-    fetchJsonSafe('/data/scene_manifest.json', null),
-    fetchJsonSafe('/data/city_plan.json', null)
+    fetchJsonSafe(`/data/places.json?${ASSET_VER}`, null),
+    fetchJsonSafe(`/data/scene_manifest.json?${ASSET_VER}`, null),
+    fetchJsonSafe(`/data/city_plan.json?${ASSET_VER}`, null)
   ]);
 
   if (rawCityPlanData) {
@@ -1330,7 +1331,8 @@ async function initApp() {
     regionEntries.map(
       (reg) =>
         new Promise((resolve) => {
-          const glbUrl = reg.glb || reg.glb_path || reg.url;
+          const rawGlbUrl = reg.glb || reg.glb_path || reg.url;
+          const glbUrl = rawGlbUrl.includes('?') ? rawGlbUrl : `${rawGlbUrl}?${ASSET_VER}`;
           gltfLoader.load(
             glbUrl,
             (gltf) => {
