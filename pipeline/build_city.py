@@ -68,47 +68,14 @@ def smoothstep(edge0: float, edge1: float, x: float) -> float:
     return t * t * (3.0 - 2.0 * t)
 
 
+from fetch_osm_and_dem import street_elevation_z as _global_street_elevation_z
+
+
 def street_elevation_z(x: float, y: float) -> float:
     """
     Continuous street-level elevation z(x, y) in metres relative to Jaffa Gate (766.0m ASL).
     """
-    z_base = 0.0
-
-    if x < -10.0:
-        w_t = smoothstep(-10.0, -90.0, x)
-        z_base -= 2.5 * w_t
-        if y < -10.0:
-            sw_t = smoothstep(-10.0, -80.0, y) * smoothstep(-5.0, -60.0, x)
-            z_base -= 1.8 * sw_t
-
-    if x >= -5.0:
-        omar_x = smoothstep(-5.0, 22.0, x) * (1.0 - smoothstep(75.0, 105.0, x))
-        omar_y = 1.0 - smoothstep(10.0, 45.0, abs(y + 2.0))
-        crown = 0.35 + 0.45 * smoothstep(15.0, 65.0, x)
-        z_base += crown * omar_x * omar_y
-
-    if x > 75.0:
-        david_x_in = smoothstep(75.0, 88.0, x)
-        david_prog = smoothstep(85.0, 160.0, x)
-        extra_east = max(0.0, (x - 160.0) / 60.0) * 1.2 if x > 160.0 else 0.0
-        z_david = 0.5 - 4.0 * david_prog - extra_east
-        corridor_y = 1.0 - 0.35 * smoothstep(12.0, 80.0, abs(y - 4.0))
-        z_base = (1.0 - david_x_in) * z_base + david_x_in * (z_david * corridor_y)
-
-    if y > 8.0 and x > -15.0:
-        north_t = smoothstep(8.0, 85.0, y)
-        east_fade = 1.0 - 0.5 * smoothstep(65.0, 140.0, x)
-        west_in = smoothstep(-15.0, 10.0, x)
-        z_base += 2.2 * north_t * east_fade * west_in
-
-    if y < -15.0 and x > 35.0:
-        south_t = smoothstep(-15.0, -90.0, y) * smoothstep(35.0, 75.0, x)
-        z_base += 1.2 * south_t
-
-    gate_pin = (1.0 - smoothstep(4.0, 16.0, abs(x + 6.0))) * (1.0 - smoothstep(3.0, 9.0, abs(y - 3.0)))
-    z_base = (1.0 - gate_pin) * z_base + gate_pin * 0.0
-
-    return round(z_base, 3)
+    return _global_street_elevation_z(x, y)
 
 
 # ==============================================================================
@@ -390,10 +357,11 @@ def build_continuous_ground_mesh(collector: MeshCollector) -> None:
         if is_in_moat_cutout(xm, ym):
             return
 
-        z00 = street_elevation_z(x0, y0)
-        z10 = street_elevation_z(x1, y0)
-        z11 = street_elevation_z(x1, y1)
-        z01 = street_elevation_z(x0, y1)
+        z_under = -0.05 if xm > 164.5 else 0.0
+        z00 = street_elevation_z(x0, y0) + z_under
+        z10 = street_elevation_z(x1, y0) + z_under
+        z11 = street_elevation_z(x1, y1) + z_under
+        z01 = street_elevation_z(x0, y1) + z_under
 
         is_paved = (-125.0 <= xm <= 175.0 and -98.0 <= ym <= 115.0)
         if not is_paved:
@@ -416,9 +384,9 @@ def build_continuous_ground_mesh(collector: MeshCollector) -> None:
             expected_normal=(0.0, 0.0, 1.0),
         )
 
-    # 1. Core Walkable Zone (`-60 <= x <= 130`, `-80 <= y <= 55`) at fine `2.5m` spacing
+    # 1. Core Walkable Zone (`-60 <= x <= 167.5`, `-80 <= y <= 55`) at fine `2.5m` spacing
     core_step = 2.5
-    core_xs = [-60.0 + i * core_step for i in range(int(190.0 / core_step) + 1)]
+    core_xs = [-60.0 + i * core_step for i in range(int(227.5 / core_step) + 1)]
     core_ys = [-80.0 + j * core_step for j in range(int(135.0 / core_step) + 1)]
     for j in range(len(core_ys) - 1):
         y0, y1 = core_ys[j], core_ys[j + 1]
@@ -426,7 +394,7 @@ def build_continuous_ground_mesh(collector: MeshCollector) -> None:
             x0, x1 = core_xs[i], core_xs[i + 1]
             emit_ground_cell(x0, y0, x1, y1)
 
-    # 2. Outer Surround Zone (`-170..200` x `-170..170` outside `-60..130` x `-80..55`) at `10.0m` coarse spacing
+    # 2. Outer Surround Zone (`-170..200` x `-170..170` outside `-60..167.5` x `-80..55`) at `10.0m` coarse spacing
     outer_xs = [-170.0 + i * 10.0 for i in range(38)]
     outer_ys = [-170.0 + j * 10.0 for j in range(9)] + [-80.0, -70.0, -60.0, -50.0, -40.0, -30.0, -20.0, -10.0, 0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 55.0, 65.0] + [70.0 + j * 10.0 for j in range(11)]
     for j in range(len(outer_ys) - 1):
@@ -435,7 +403,10 @@ def build_continuous_ground_mesh(collector: MeshCollector) -> None:
         for i in range(len(outer_xs) - 1):
             x0, x1 = outer_xs[i], outer_xs[i + 1]
             xm = 0.5 * (x0 + x1)
-            if -60.0 < xm < 130.0 and -80.0 < ym < 55.0:
+            if -60.0 < xm < 167.5 and -80.0 < ym < 55.0:
+                continue
+            # Do not emit coarse 10m triangles inside r02 / r03 / r04 where fine 5.5m region ground grids exist
+            if xm > 167.5 or (xm > -15.0 and ym > 55.0) or (xm > -15.0 and ym < -80.0):
                 continue
             emit_ground_cell(x0, y0, x1, y1)
 

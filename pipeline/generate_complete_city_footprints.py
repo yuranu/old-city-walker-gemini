@@ -59,30 +59,33 @@ EXACT_RESERVE_RECTS: List[Tuple[float, float, float, float]] = [
     (6.0, -92.0, 66.0, -14.0),
     (10.0, 22.0, 44.0, 68.0),
     (76.0, -11.0, 164.0, 15.0),
-    # 2. Church of the Holy Sepulchre (`162..220, 157..215`) & Mosque of Omar (`180..199, 136..151`)
-    (162.0, 157.0, 220.0, 215.0),
+    # 2. Church of the Holy Sepulchre (`170..219, 159..213`) & Mosque of Omar (`180..199, 136..151`)
+    (170.0, 159.0, 219.0, 213.0),
     (180.0, 136.0, 199.0, 151.0),
-    # 3. Muristan Fountain (`223..241, 119..137`) & Lutheran Church of the Redeemer (`263..296, 131..152`)
-    (223.0, 119.0, 241.0, 137.0),
-    (263.0, 131.0, 296.0, 152.0),
-    # 4. St. James Cathedral (`117..148, -246..-215`)
-    (117.0, -246.0, 148.0, -215.0),
-    # 5. Hurva Synagogue & Hurva Square (`331..362, -154..-100`) & Golden Menorah (`373..384, -113..-102`) & Sidna Omar Minaret (`363..370, -148..-140`)
-    (331.0, -154.0, 362.0, -100.0),
-    (373.0, -113.0, 384.0, -102.0),
-    (363.0, -148.0, 370.0, -140.0),
-    # 6. Four Sephardic Synagogues (`347..380, -250..-226`), Tiferet Yisrael (`430.5..448.0, -147.0..-124.5`), Batei Mahaseh (`426..452, -333..-308`), Broad Wall (`328..343, -91..-66`)
-    (347.0, -250.0, 380.0, -226.0),
-    (430.5, -147.0, 448.0, -124.5),
-    (426.0, -333.0, 452.0, -308.0),
-    (328.0, -91.0, 343.0, -66.0),
-    # 7. Southern Roman Cardo Colonnade (`299..317, -192..-56`) & Crusader Vaulted Triple Souq (`295..331, -38..122`)
-    (299.0, -192.0, 317.0, -56.0),
-    (295.0, -38.0, 331.0, 122.0),
-    # 8. Mamluk Turba West (`436..454, 30.0..42.0`), Mamluk Turba East (`516..534, 42.0..54.0`), & Suq al-Qattanin (`522..614, 139..155`)
-    (436.0, 30.0, 454.0, 42.0),
-    (516.0, 42.0, 534.0, 54.0),
+    # 3. Muristan Fountain (`224..240, 120..136`) & Lutheran Church of the Redeemer (`264..295, 132..151.5`)
+    (224.0, 120.0, 240.0, 136.0),
+    (264.0, 132.0, 295.0, 151.5),
+    # 4. St. James Cathedral (`117.5..147.5, -244.0..-215.5`)
+    (117.5, -244.0, 147.5, -215.5),
+    # 5. Hurva Synagogue & Hurva Square (`333.5..360.5, -152.5..-103.5`), Golden Menorah (`375.5..381.5, -116.5..-111.0`), & Sidna Omar Minaret (`363.5..369.5, -147.5..-140.5`)
+    (333.5, -152.5, 360.5, -103.5),
+    (375.5, -116.5, 381.5, -111.0),
+    (363.5, -147.5, 369.5, -140.5),
+    # 6. Four Sephardic Synagogues (`348..379, -249..-227`), Tiferet Yisrael (`430.0..448.5, -146.5..-125.0`), Batei Mahaseh (`426..451, -333..-308`), Broad Wall (`329.5..342.0, -90.0..-68.0`)
+    (348.0, -249.0, 379.0, -227.0),
+    (430.0, -146.5, 448.5, -125.0),
+    (426.0, -333.0, 451.0, -308.0),
+    (329.5, -90.0, 342.0, -68.0),
+    # 7. Southern Roman Cardo Colonnade (`299.5..317.0, -190.0..-56.0`) & Crusader Vaulted Triple Souq (`304.0..331.5, -36.0..121.0`)
+    (299.5, -190.0, 317.0, -56.0),
+    (304.0, -36.0, 331.5, 121.0),
+    # 8. Mamluk Turba West (`436.5..453.5, 29.0..41.0`), Mamluk Turba East (`516.5..533.5, 41.0..53.0`), Suq al-Qattanin (`522.0..614.0, 139.0..155.0`), & Western Wall / Beit Strauss (`588.0..668.0, -36.0..34.0`)
+    (436.5, 29.0, 453.5, 41.0),
+    (516.5, 41.0, 533.5, 53.0),
     (522.0, 139.0, 614.0, 155.0),
+    (588.0, -36.0, 643.0, 34.0),
+    (634.0, -36.0, 668.0, 47.5),
+    (641.0, 47.5, 668.0, 65.5),
     # 9. Damascus Gate Amphitheater & Inner Fork (`233..282, 518..592`)
     (233.0, 518.0, 282.0, 592.0),
     # 10. Herod's Gate (`554..582, 686..726`), Lions' Gate (`858..892, 456..478`), Zion Gate (`174..206, -426..-391`), New Gate (`-154..-126, 284..314`), Dung Gate (`598..630, -222..-184`)
@@ -94,8 +97,9 @@ EXACT_RESERVE_RECTS: List[Tuple[float, float, float, float]] = [
     # 11. Crusader Church of St. Anne + West Parvis (`806..853, 518..539`) & Pools of Bethesda (`772..801, 525..550`)
     (806.0, 518.0, 853.0, 539.0),
     (772.0, 525.0, 801.0, 550.0),
-    # 12. Austrian Hospice custom main villa (`405..433, 398..418`) & Ecce Homo Sisters of Zion arch piers (`506..524, 390..407`)
+    # 12. Austrian Hospice custom main villa (`405..433, 398..418`), Station III/IV Patriarchate Courtyard (`404..414, 376..389`), & Ecce Homo Sisters of Zion arch piers (`506..524, 390..407`)
     (405.0, 398.0, 433.0, 418.0),
+    (404.0, 376.0, 414.0, 389.0),
     # 13. Stork Tower (Burj al-Laqlaq) NE Bastion (`800..826, 745..778`) & Hezekiah's Pool (`115..152, 36..100`)
     (800.0, 745.0, 826.0, 778.0),
     (115.0, 36.0, 152.0, 100.0),
@@ -304,38 +308,54 @@ def main() -> None:
         was_carved = (len(sub_polys) > 1) or (abs(diff.area - poly.area) > 1.5)
 
         for sp_idx, sp in enumerate(sub_polys):
-            sp_clean = sp.simplify(0.15, preserve_topology=True)
-            if not isinstance(sp_clean, Polygon) or sp_clean.is_empty or sp_clean.area < 14.0:
-                continue
-            bx0, by0, bx1, by1 = sp_clean.bounds
-            bsx, bsy = bx1 - bx0, by1 - by0
-            if min(bsx, bsy) < 2.2:
-                continue
+            # Morphological opening trims off any thin (< 1.6m) wall spikes created by street carving
             try:
-                rep_pt = polylabel(sp_clean, tolerance=0.25)
+                sp_opened = sp.buffer(-0.80, join_style=2).buffer(0.80, join_style=2)
+                if not sp_opened.is_empty:
+                    sp = sp_opened
             except Exception:
-                rep_pt = sp_clean.representative_point()
-            scx, scy = float(rep_pt.x), float(rep_pt.y)
-            if not city_wall_poly.contains(Point(scx, scy)) or reserve_only_union.contains(Point(scx, scy)):
-                continue
+                pass
+            sp_parts = (
+                list(sp.geoms)
+                if isinstance(sp, MultiPolygon)
+                else ([sp] if isinstance(sp, Polygon) else [g for g in getattr(sp, "geoms", []) if isinstance(g, Polygon)])
+            )
+            for part_idx, sp_part in enumerate(sp_parts):
+                sp_clean = sp_part.simplify(0.15, preserve_topology=True)
+                if not isinstance(sp_clean, Polygon) or sp_clean.is_empty or sp_clean.area < 14.0:
+                    continue
+                bx0, by0, bx1, by1 = sp_clean.bounds
+                bsx, bsy = bx1 - bx0, by1 - by0
+                if min(bsx, bsy) < 2.2:
+                    continue
+                # Reject thin diagonal slivers whose perpendicular core width is < 2.3m
+                if sp_clean.buffer(-1.15, join_style=2).is_empty:
+                    continue
+                try:
+                    rep_pt = polylabel(sp_clean, tolerance=0.25)
+                except Exception:
+                    rep_pt = sp_clean.representative_point()
+                scx, scy = float(rep_pt.x), float(rep_pt.y)
+                if not city_wall_poly.contains(Point(scx, scy)) or reserve_only_union.contains(Point(scx, scy)):
+                    continue
 
-            ext_coords = [[round(float(x), 2), round(float(y), 2)] for x, y in sp_clean.exterior.coords]
-            if len(ext_coords) < 4:
-                continue
+                ext_coords = [[round(float(x), 2), round(float(y), 2)] for x, y in sp_clean.exterior.coords]
+                if len(ext_coords) < 4:
+                    continue
 
-            b_entry = dict(b)
-            b_entry["osm_id"] = oid if (sp_idx == 0 and not was_carved) else next_synth_id
-            if sp_idx > 0 or was_carved:
-                next_synth_id += 1
-                carved_osm += 1
-            b_entry["region"] = classify_region(scx, scy)
-            b_entry["centroid"] = [round(scx, 2), round(scy, 2)]
-            b_entry["ring"] = ext_coords
-            b_entry = enrich_building_geometry(b_entry)
+                b_entry = dict(b)
+                b_entry["osm_id"] = oid if (sp_idx == 0 and part_idx == 0 and not was_carved) else next_synth_id
+                if sp_idx > 0 or part_idx > 0 or was_carved:
+                    next_synth_id += 1
+                    carved_osm += 1
+                b_entry["region"] = classify_region(scx, scy)
+                b_entry["centroid"] = [round(scx, 2), round(scy, 2)]
+                b_entry["ring"] = ext_coords
+                b_entry = enrich_building_geometry(b_entry)
 
-            clean_buildings.append(b_entry)
-            placed_intramural_polys.append(sp_clean)
-            kept_osm += 1
+                clean_buildings.append(b_entry)
+                placed_intramural_polys.append(sp_clean)
+                kept_osm += 1
 
     print(f"[2/2] Preserved {kept_osm} authentic intramural OSM buildings ({carved_osm} trimmed/passaged along real OSM streets; {deduped_osm} overlapping polygons deduplicated; 0 synthetic grid boxes).")
 
