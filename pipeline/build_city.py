@@ -347,7 +347,7 @@ def build_continuous_ground_mesh(collector: MeshCollector) -> None:
             if 41.8 <= cx <= 47.2 and -29.8 <= cy <= -15.0:
                 return False
             return True
-        if 10.2 < cx < 17.5 and -75.8 < cy <= -29.8:
+        if 12.6 < cx < 17.5 and -75.8 < cy <= -29.8:
             return True
         return False
 

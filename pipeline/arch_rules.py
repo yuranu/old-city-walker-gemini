@@ -2387,6 +2387,22 @@ def build_jaffa_gate_monument(
         for p_dy in (-1.5, 0.0, 1.5):
             collector.add_box("StreetProps", "mat_iron_dark", (16.2, ym_s + p_dy, pz_s + 0.50), (0.06, 0.06, 1.0))
 
+    # Elevated Western Citadel Moat Rampart Walkway (`x = 10.0..12.6, y = -76.0..-40.0`, framing `citadel_moat_1_fwd/rev` at `(11.86, -54.3)`)
+    for y_seg_m in range(-76, -40, 4):
+        ym_m = float(y_seg_m) + 2.0
+        pz_m = _global_street_elevation_z(11.8, ym_m)
+        # Grounded stone retaining wall supporting the `x = 10.0..12.5` rampart walkway from `moat_z = -6.0` up to `pz_m`
+        collector.add_box("CityWalls", "mat_stone_ashlar_aged", (11.3, ym_m, 0.5 * (-6.0 + pz_m)), (2.5, 4.05, pz_m + 6.0), uv_scale=0.24)
+        # Western crenellated rampart parapet wall (`x = 10.2`)
+        collector.add_box("CityWalls", "mat_stone_boss", (10.2, ym_m, pz_m + 0.85), (0.65, 4.05, 1.70), uv_scale=0.25)
+        if (y_seg_m // 4) % 2 == 0:
+            collector.add_box("CityWalls", "mat_stone_boss", (10.2, ym_m, pz_m + 2.05), (0.62, 2.1, 0.75), uv_scale=0.28)
+        # Eastern wrought-iron safety railing (`x = 12.48`) overlooking the Citadel moat & Tower of David
+        collector.add_box("StreetProps", "mat_iron_dark", (12.48, ym_m, pz_m + 0.98), (0.06, 4.05, 0.06))
+        collector.add_box("StreetProps", "mat_iron_dark", (12.48, ym_m, pz_m + 0.52), (0.05, 4.05, 0.05))
+        for p_dy in (-1.5, 0.0, 1.5):
+            collector.add_box("StreetProps", "mat_iron_dark", (12.48, ym_m + p_dy, pz_m + 0.50), (0.06, 0.06, 1.0))
+
 
 def build_citadel_and_tower_of_david(
     collector: MeshCollector,
@@ -2480,7 +2496,6 @@ def build_citadel_and_tower_of_david(
     build_cypress_tree(collector, 13.5, -22.0, moat_z, height=11.8, seed=111, with_kerb=False)
     build_cypress_tree(collector, 13.5, -30.0, moat_z, height=11.2, seed=112, with_kerb=False)
     build_cypress_tree(collector, 13.5, -38.5, moat_z, height=10.8, seed=113, with_kerb=False)
-    build_cypress_tree(collector, 13.5, -46.5, moat_z, height=10.5, seed=114, with_kerb=False)
     build_olive_tree(collector, 18.8, -22.8, moat_z, height=7.4, seed=115, with_kerb=False)
     build_olive_tree(collector, 29.0, -22.8, moat_z, height=7.4, seed=116, with_kerb=False)
     build_cypress_tree(collector, 38.8, -22.5, moat_z, height=10.8, seed=117, with_kerb=False)

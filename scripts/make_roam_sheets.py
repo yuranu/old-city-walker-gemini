@@ -37,7 +37,9 @@ def main() -> None:
         ref_id = v.get("refId")
         if not ref_id:
             continue
-        ref_path = ref_dir / f"{ref_id}.jpg"
+        ref_path = root_dir / "data" / "streetview_references" / f"{ref_id}.jpg"
+        if not ref_path.exists():
+            ref_path = ref_dir / f"{ref_id}.jpg"
         mod_path = out_dir / v["file"]
         if not ref_path.exists() or not mod_path.exists():
             continue
