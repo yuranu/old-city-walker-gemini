@@ -487,7 +487,29 @@ export class PlayerController {
       return this._pickBestWalkableHit(fallbackHits, null);
     }
 
-    if (hits.length === 0) return null;
+    if (hits.length === 0) {
+      if (referenceFootY === null) {
+        const offsets = [
+          [1.8, 0],
+          [-1.8, 0],
+          [0, 1.8],
+          [0, -1.8],
+          [3.2, 0],
+          [-3.2, 0]
+        ];
+        for (const [ox, oz] of offsets) {
+          this.downRaycaster.set(
+            new THREE.Vector3(threeX + ox, rayOriginY, threeZ + oz),
+            new THREE.Vector3(0, -1, 0)
+          );
+          const nearHits = this.downRaycaster.intersectObjects(this.walkableMeshes, false);
+          if (nearHits.length > 0) {
+            return this._pickBestWalkableHit(nearHits, null);
+          }
+        }
+      }
+      return null;
+    }
     return this._pickBestWalkableHit(hits, referenceFootY);
   }
 

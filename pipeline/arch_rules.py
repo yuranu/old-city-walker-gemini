@@ -90,35 +90,37 @@ AWNING_MATS: List[str] = [
     "mat_awning_green",
 ]
 
-# Active walkable player/camera corridors across all 8 regions of the Old City for 3-Tier Architectural LOD
+# Active walkable player/camera corridors across all 9 regions of the Old City for 3-Tier Architectural LOD
+# Synchronized with exact OpenStreetMap thoroughfare coordinates
 _CURATED_STREET_POLYLINES: List[List[Vec2]] = [
-    [(-95.0, 14.0), (-42.0, 6.0), (-16.0, 2.5), (0.0, 2.0), (22.0, -2.0), (75.0, 2.0)],  # Jaffa Gate & Omar Sq
-    [(4.0, -4.0), (10.0, -85.0), (10.0, -210.0)],  # 1898 Breach & Western Citadel Moat Road
-    [(75.0, 2.0), (155.0, 2.0), (235.0, 8.0), (313.0, 14.0)],  # David St (Suq el-Bazar)
-    [(313.0, 14.0), (385.0, 24.0), (455.0, 35.0), (555.0, 35.0), (662.0, 35.0)],  # Street of the Chain
-    [(254.0, 545.0), (275.0, 440.0), (292.0, 330.0), (306.0, 210.0), (313.0, 108.0), (313.0, 14.0)],  # Khan el-Zeit
-    [(313.0, 108.0), (313.0, 14.0), (308.0, -75.0), (308.0, -185.0), (308.0, -265.0)],  # Triple Souq & Roman Cardo
-    [(262.0, 540.0), (345.0, 465.0), (430.0, 412.0), (468.0, 310.0), (512.0, 195.0), (555.0, 85.0), (595.0, 12.0)],  # El-Wad (HaGai St)
-    [(875.0, 467.0), (812.0, 528.0), (685.0, 485.0), (565.0, 428.0), (478.0, 413.0), (430.0, 412.0), (395.0, 335.0), (296.0, 255.0), (235.0, 185.0), (197.0, 158.0)],  # Via Dolorosa
-    [(75.0, 12.0), (92.0, 95.0), (112.0, 175.0), (132.0, 255.0), (148.0, 315.0)],  # Christian Quarter Rd
-    [(24.0, 6.0), (24.0, 65.0), (8.0, 145.0), (-45.0, 215.0), (-138.0, 294.0)],  # Latin Patriarchate Rd & New Gate
-    [(8.0, 145.0), (65.0, 155.0), (112.0, 175.0), (168.0, 175.0)],  # Greek Patriarchate St
-    [(-138.0, 294.0), (-55.0, 285.0), (35.0, 285.0), (132.0, 255.0)],  # St. Francis St
-    [(168.0, 124.0), (222.0, 124.0), (268.0, 124.0), (306.0, 124.0)],  # Muristan (Suq Aftimos)
-    [(197.0, 124.0), (197.0, 158.0), (235.0, 185.0)],  # St. Helena Rd & Holy Sepulchre Parvis
-    [(58.0, -4.0), (56.0, -95.0), (54.0, -210.0), (58.0, -325.0), (125.0, -385.0), (186.0, -410.0)],  # Armenian Patriarchate Rd & Zion Gate
-    [(54.0, -210.0), (132.0, -242.0), (215.0, -235.0), (308.0, -225.0)],  # St. James St
-    [(185.0, -85.0), (185.0, -175.0), (185.0, -285.0), (186.0, -410.0)],  # Ararat St
-    [(346.0, -45.0), (346.0, -110.0), (348.0, -195.0), (355.0, -285.0), (315.0, -355.0)],  # Jewish Quarter Rd
-    [(308.0, -145.0), (365.0, -145.0), (435.0, -155.0), (495.0, -155.0), (565.0, -95.0)],  # Tiferet Yisrael & Western Wall Approach
-    [(445.0, -75.0), (455.0, -155.0), (448.0, -245.0), (435.0, -310.0)],  # Misgav Ladach St
-    [(435.0, -310.0), (525.0, -240.0), (612.0, -200.0), (615.0, -95.0), (615.0, -25.0)],  # Batei Mahaseh & Dung Gate Rd
-    [(512.0, 145.0), (585.0, 145.0), (668.0, 145.0)],  # Suq al-Qattanin (Cotton Market)
-    [(306.0, 185.0), (410.0, 185.0), (512.0, 195.0)],  # Aqabat al-Khalidiya
-    [(295.0, 295.0), (390.0, 295.0), (468.0, 310.0)],  # Aqabat al-Saraya
-    [(485.0, 265.0), (585.0, 265.0), (668.0, 265.0)],  # Tariq Bab al-Nazir
-    [(568.0, 702.0), (555.0, 585.0), (545.0, 485.0), (565.0, 428.0)],  # Al-Qadisiya / Herod's Gate Rd
-    [(568.0, 650.0), (685.0, 625.0), (745.0, 545.0), (745.0, 365.0)],  # Bab Hutta Rd
+    [(-95.0, 14.0), (-42.0, 6.0), (-16.0, 2.5), (-6.2, 2.7), (8.1, -7.7), (34.8, 1.8), (62.5, 10.6), (83.7, 4.8)],  # Jaffa Gate & Omar Sq
+    [(-6.2, 2.7), (8.1, -7.7), (10.8, -46.8), (15.5, -80.2), (12.3, -139.2), (16.5, -173.4)],  # Citadel Moat & Maronite Convent St
+    [(83.7, 4.8), (93.4, 11.1), (122.8, 10.6), (145.9, 10.1), (162.5, 11.4), (179.8, 15.0), (198.7, 15.0), (230.6, 15.7), (255.4, 18.0), (285.8, 19.2), (302.4, 20.4), (313.6, 20.2), (329.2, 19.4)],  # David St
+    [(329.2, 19.4), (331.8, 11.1), (352.1, 12.0), (379.8, 14.1), (404.2, 18.6), (440.9, 24.2), (472.6, 29.2), (505.5, 33.9), (521.3, 36.7), (552.6, 46.4), (587.2, 56.7), (616.5, 65.4), (626.2, 73.2)],  # Street of the Chain
+    [(254.8, 555.9), (263.7, 550.5), (271.4, 545.2), (284.4, 527.4), (290.7, 513.0), (295.1, 496.6), (290.5, 493.1), (290.6, 470.3), (292.7, 444.4), (294.2, 403.5), (296.2, 398.5), (298.1, 349.2), (299.5, 329.4), (300.5, 300.8), (304.0, 293.2), (305.1, 264.9), (306.7, 237.1), (306.8, 215.2), (307.7, 193.8), (307.9, 172.5)],  # Khan el-Zeit
+    [(307.9, 172.5), (313.8, 138.7), (319.1, 20.2), (320.2, 3.0), (315.4, -46.5), (312.7, -80.0), (310.7, -113.3), (307.7, -170.2), (306.0, -193.5)],  # Triple Souq & Roman Cardo
+    [(295.1, 496.6), (298.5, 496.8), (308.5, 489.4), (328.9, 463.3), (350.3, 435.8), (359.0, 425.3), (365.4, 425.4), (380.8, 412.0), (388.1, 404.6), (412.0, 374.7), (431.3, 347.7), (444.4, 330.0), (450.0, 325.4), (460.3, 315.8), (475.1, 305.2), (486.3, 286.1), (498.3, 269.1), (502.5, 247.1), (509.6, 218.3), (511.9, 196.8), (513.3, 176.9), (520.4, 142.6), (522.8, 129.6), (525.4, 109.1), (526.8, 83.3), (537.2, 66.3), (541.5, 35.8)],  # Al-Wad (HaGai St)
+    [(879.9, 468.5), (868.6, 466.8), (830.7, 459.6), (792.8, 453.8), (746.3, 444.0), (701.4, 436.9), (674.9, 431.2), (665.3, 429.5), (626.7, 421.6), (592.3, 414.4), (556.6, 407.2), (536.2, 403.0), (509.1, 397.1), (481.1, 392.1), (458.6, 387.8), (432.1, 382.6), (412.0, 374.7), (431.3, 347.7), (450.0, 325.4), (391.3, 311.3), (342.4, 301.4), (304.0, 293.2)],  # Via Dolorosa
+    [(162.5, 11.4), (161.5, 21.2), (160.0, 56.0), (157.4, 101.2), (154.7, 134.5), (153.7, 150.0), (152.2, 182.9), (147.2, 222.0), (146.3, 262.7)],  # Christian Quarter St
+    [(34.8, 1.8), (23.3, 16.8), (-0.7, 46.1), (-32.6, 71.9), (-61.4, 96.1), (-40.6, 121.4), (-60.8, 141.0), (-51.1, 148.6), (6.3, 168.4), (-10.5, 195.8), (-33.3, 220.1), (-56.3, 231.1), (-95.6, 208.0), (-125.3, 247.8), (-135.3, 273.8), (-139.7, 294.8)],  # Latin Patriarchate & New Gate Rd
+    [(6.3, 168.4), (89.5, 200.9), (114.4, 210.6), (147.2, 222.0)],  # Greek Patriarchate St
+    [(-33.3, 220.1), (-24.9, 235.1), (-0.9, 239.9), (33.2, 246.9), (95.0, 257.4), (146.3, 262.7), (193.7, 270.8), (253.3, 281.1), (304.0, 293.2)],  # St. Francis St & Aqabat el-Khanqa
+    [(153.7, 150.0), (180.5, 155.2), (211.4, 157.9), (250.7, 154.8), (298.6, 155.4), (307.9, 172.5)],  # Muristan (Suq Aftimos)
+    [(250.7, 154.8), (251.2, 120.5), (251.6, 99.8), (254.1, 60.0), (255.4, 18.0)],  # Muristan St
+    [(83.7, 4.8), (93.8, -8.2), (100.3, -33.5), (97.6, -54.9), (95.1, -76.2), (100.1, -81.1), (106.3, -104.7), (106.4, -130.4), (100.3, -180.3), (94.0, -220.1), (92.7, -256.3), (94.0, -290.1), (95.3, -342.4), (96.1, -382.0), (104.3, -401.2), (159.1, -404.7), (189.1, -399.7), (207.5, -406.5)],  # Armenian Patriarchate Rd
+    [(100.3, -180.3), (141.4, -179.9), (143.2, -163.4), (175.8, -161.5), (204.6, -149.9), (233.3, -148.8), (262.8, -152.7), (295.4, -165.8)],  # St. James & Or HaHayim St
+    [(264.6, -57.9), (239.8, -77.0), (220.5, -104.8), (204.6, -149.9), (205.6, -186.1), (203.2, -223.7), (197.9, -260.3), (219.0, -276.0), (209.1, -305.9), (211.0, -338.1), (211.0, -379.4), (213.0, -407.5)],  # Ararat St
+    [(302.4, 20.4), (303.0, -41.9), (299.6, -98.5), (295.4, -165.8), (291.2, -230.9), (290.1, -299.0), (285.7, -320.7)],  # Chabad St
+    [(329.2, 19.4), (331.8, 11.1), (329.2, -43.8), (322.6, -91.0), (322.7, -124.7), (314.9, -167.1), (311.3, -216.1), (313.8, -245.0), (316.4, -264.7)],  # Jewish Quarter St
+    [(322.7, -124.7), (377.1, -115.5), (400.2, -122.1), (427.7, -124.5), (447.3, -122.5), (465.3, -136.2), (490.1, -132.1)],  # Tiferet Israel St
+    [(472.6, 29.2), (482.5, -9.2), (484.3, -60.2), (483.6, -87.0), (490.1, -132.1), (487.5, -165.1), (483.1, -198.9), (478.4, -235.5), (491.6, -252.5)],  # Misgav Ladach St
+    [(296.0, -320.5), (349.1, -314.7), (399.3, -312.1), (441.2, -293.6), (504.8, -262.4), (533.7, -237.1), (562.2, -188.1), (568.0, -150.2), (574.5, -139.3), (597.0, -148.0), (607.4, -177.7), (614.5, -197.2), (621.2, -218.3)],  # Batei Mahase & Dung Gate Rd
+    [(520.4, 142.6), (537.0, 145.2), (567.7, 150.7), (586.3, 152.6), (613.5, 151.9)],  # Suq al-Qattanin (Cotton Market)
+    [(307.9, 172.5), (376.9, 176.1), (412.9, 175.5), (468.3, 181.7), (482.8, 121.9), (522.8, 129.6)],  # Aqabat al-Khalidiya
+    [(306.7, 237.1), (390.3, 247.3), (411.7, 251.0), (498.3, 269.1), (590.2, 277.9)],  # Aqabat el-Saraya
+    [(511.9, 196.8), (556.7, 189.3), (605.1, 197.9)],  # Bab el-Hadid St
+    [(569.3, 697.4), (595.0, 696.0), (615.1, 683.4), (626.1, 653.6), (637.3, 582.7), (660.9, 448.8), (665.3, 429.5)],  # Al-Qadisiya / Herod's Gate Rd
+    [(708.5, 628.3), (713.3, 596.7), (723.7, 560.3), (729.1, 529.3), (743.7, 460.3), (752.1, 399.8)],  # Bab Hutta Rd
 ]
 
 WALKABLE_CORRIDORS: List[Tuple[Vec2, Vec2]] = [
@@ -211,6 +213,62 @@ def _point_in_poly_2d(px: float, py: float, poly: Sequence[Vec2]) -> bool:
             if px < x_int:
                 inside = not inside
     return inside
+
+
+def _find_safe_roof_interior_point(pts: Sequence[Vec2], clearance_r: float) -> Optional[Vec2]:
+    """
+    Finds an interior point `(rx, ry)` inside polygon `pts` such that the entire circle of
+    radius `clearance_r` around `(rx, ry)` lies strictly inside `pts` and at distance
+    `>= clearance_r` from every polygon edge. Returns None if the polygon is too narrow or
+    concave to accommodate `clearance_r`.
+    """
+    if len(pts) < 3:
+        return None
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    if (max_x - min_x) < 2.0 * clearance_r or (max_y - min_y) < 2.0 * clearance_r:
+        return None
+
+    n = len(pts)
+    candidates: List[Vec2] = [(sum(xs) / n, sum(ys) / n)]
+    # Sample 7x7 interior grid across bounding box
+    for gx in range(1, 8):
+        tx = min_x + clearance_r + (max_x - min_x - 2.0 * clearance_r) * (gx / 8.0)
+        for gy in range(1, 8):
+            ty = min_y + clearance_r + (max_y - min_y - 2.0 * clearance_r) * (gy / 8.0)
+            candidates.append((tx, ty))
+    # Also sample midpoints of non-adjacent vertices
+    for i in range(n):
+        for j in range(i + 2, min(n, i + 6)):
+            candidates.append((0.5 * (pts[i][0] + pts[j][0]), 0.5 * (pts[i][1] + pts[j][1])))
+
+    best_pt: Optional[Vec2] = None
+    best_dist = -1.0
+    angles = [k * (math.pi / 4.0) for k in range(8)]
+
+    for qx, qy in candidates:
+        if not _point_in_poly_2d(qx, qy, pts):
+            continue
+        min_edge_d = min(
+            _point_to_segment_dist(qx, qy, pts[i][0], pts[i][1], pts[(i + 1) % n][0], pts[(i + 1) % n][1])
+            for i in range(n)
+        )
+        if min_edge_d < clearance_r or min_edge_d <= best_dist:
+            continue
+        circle_ok = True
+        for ang in angles:
+            cx_p = qx + clearance_r * math.cos(ang)
+            cy_p = qy + clearance_r * math.sin(ang)
+            if not _point_in_poly_2d(cx_p, cy_p, pts):
+                circle_ok = False
+                break
+        if circle_ok:
+            best_dist = min_edge_d
+            best_pt = (qx, qy)
+
+    return best_pt
 
 
 def is_bay_clearance_valid(
@@ -825,7 +883,7 @@ def build_ground_shop_bay(
     if bay_w < 1.6 or bay_h < 2.6:
         collector.add_quad(
             "Buildings_Walls", pier_mat,
-            (p0_xy[0], p0_xy[1], z0 - 1.5), (p1_xy[0], p1_xy[1], z0 - 1.5),
+            (p0_xy[0], p0_xy[1], z0 - 9.5), (p1_xy[0], p1_xy[1], z0 - 9.5),
             (p1_xy[0], p1_xy[1], z1), (p0_xy[0], p0_xy[1], z1),
             expected_normal=(nx, ny, 0.0),
         )
@@ -854,33 +912,33 @@ def build_ground_shop_bay(
     arch_h = min(0.54, open_w * 0.24)
     head_z = arch_spring_z + arch_h
 
-    # 1. Left & right outer stone piers extending down to `z0 - 1.5m` (so sloped streets never show gaps!)
+    # 1. Left & right outer stone piers extending down to `z0 - 9.5m` (so sloped streets never show gaps!)
     collector.add_quad(
         "Buildings_Walls", pier_mat,
-        (p0_xy[0], p0_xy[1], z0 - 1.5), (s_p0[0], s_p0[1], z0 - 1.5), (s_p0[0], s_p0[1], z1), (p0_xy[0], p0_xy[1], z1),
+        (p0_xy[0], p0_xy[1], z0 - 9.5), (s_p0[0], s_p0[1], z0 - 9.5), (s_p0[0], s_p0[1], z1), (p0_xy[0], p0_xy[1], z1),
         expected_normal=(nx, ny, 0.0),
     )
     collector.add_quad(
         "Buildings_Walls", pier_mat,
-        (s_p1[0], s_p1[1], z0 - 1.5), (p1_xy[0], p1_xy[1], z0 - 1.5), (p1_xy[0], p1_xy[1], z1), (s_p1[0], s_p1[1], z1),
+        (s_p1[0], s_p1[1], z0 - 9.5), (p1_xy[0], p1_xy[1], z0 - 9.5), (p1_xy[0], p1_xy[1], z1), (s_p1[0], s_p1[1], z1),
         expected_normal=(nx, ny, 0.0),
     )
 
-    # Explicit 0.35m recessed stone jamb reveals from `z0 - 1.5m` up to `arch_spring_z`
-    jl0 = (s_p0[0] - nx * recess, s_p0[1] - ny * recess, z0 - 1.5)
-    jl1 = (s_p0[0], s_p0[1], z0 - 1.5)
+    # Explicit 0.35m recessed stone jamb reveals from `z0 - 9.5m` up to `arch_spring_z`
+    jl0 = (s_p0[0] - nx * recess, s_p0[1] - ny * recess, z0 - 9.5)
+    jl1 = (s_p0[0], s_p0[1], z0 - 9.5)
     jl2 = (s_p0[0], s_p0[1], arch_spring_z)
     jl3 = (s_p0[0] - nx * recess, s_p0[1] - ny * recess, arch_spring_z)
     collector.add_quad("Buildings_Walls", pier_mat, jl0, jl1, jl2, jl3, expected_normal=(tx, ty, 0.0))
 
-    jr0 = (s_p1[0], s_p1[1], z0 - 1.5)
-    jr1 = (s_p1[0] - nx * recess, s_p1[1] - ny * recess, z0 - 1.5)
+    jr0 = (s_p1[0], s_p1[1], z0 - 9.5)
+    jr1 = (s_p1[0] - nx * recess, s_p1[1] - ny * recess, z0 - 9.5)
     jr2 = (s_p1[0] - nx * recess, s_p1[1] - ny * recess, arch_spring_z)
     jr3 = (s_p1[0], s_p1[1], arch_spring_z)
     collector.add_quad("Buildings_Walls", pier_mat, jr0, jr1, jr2, jr3, expected_normal=(-tx, -ty, 0.0))
 
-    # 2. Flush stone threshold step inside the recess (`z0 - 1.5 .. z0 + 0.04`, `-recess .. 0.0`)
-    collector.add_oriented_box("Buildings_Details", "mat_stone_ashlar_aged", s_p0, s_p1, z0 - 1.5, z0 + 0.04, -recess, 0.0, normal_xy)
+    # 2. Flush stone threshold step inside the recess (`z0 - 9.5 .. z0 + 0.04`, `-recess .. 0.0`)
+    collector.add_oriented_box("Buildings_Details", "mat_stone_ashlar_aged", s_p0, s_p1, z0 - 9.5, z0 + 0.04, -recess, 0.0, normal_xy)
 
     # 3. 3D Radial Stone Voussoir Arch Surround + Projecting Keystone (`num_voussoirs=5`, full recess soffit)
     add_arch_voussoirs(
@@ -1038,10 +1096,10 @@ def _build_lod1_wall(
     rx, ry = -ny, nx
     roof_z = base_z + ground_h + (levels - 1) * upper_floor_h
 
-    # Ground floor continuous stone wall quad (from base_z - 1.2 to base_z + ground_h)
+    # Ground floor continuous stone wall quad (from base_z - 9.5 to base_z + ground_h)
     collector.add_quad(
         "Buildings_Walls", ground_pier_mat,
-        (p0[0], p0[1], base_z - 1.2), (p1[0], p1[1], base_z - 1.2),
+        (p0[0], p0[1], base_z - 9.5), (p1[0], p1[1], base_z - 9.5),
         (p1[0], p1[1], base_z + ground_h), (p0[0], p0[1], base_z + ground_h),
         expected_normal=(nx, ny, 0.0),
     )
@@ -1068,17 +1126,17 @@ def _build_lod1_wall(
             cap_ends=False,
         )
 
-    num_bays = max(1, int(round(edge_len / 4.0)))
+    num_bays = max(1, int(round(edge_len / 3.8)))
     bay_w = edge_len / num_bays
     shutter_keys = ["shutter_graffiti_1", "shutter_graffiti_2", "shutter_rusty_green", "steel_door_tagged"]
-    corner_margin = 0.85
+    corner_margin = min(0.80, max(0.28, (edge_len - 2.0) * 0.35))
 
     for b_idx in range(num_bays):
-        if edge_len < 3.4 or bay_w < 2.2:
+        if edge_len < 2.25 or bay_w < 1.85:
             continue
         mid_u = (b_idx + 0.5) * bay_w
-        open_hw = min(0.86, bay_w * 0.26)
-        if (mid_u - open_hw - 0.15) < corner_margin or (mid_u + open_hw + 0.15) > (edge_len - corner_margin):
+        open_hw = min(0.84, bay_w * 0.27)
+        if (mid_u - open_hw - 0.10) < corner_margin or (mid_u + open_hw + 0.10) > (edge_len - corner_margin):
             continue
 
         mx = p0[0] + tx * mid_u
@@ -1149,50 +1207,50 @@ def _build_lod1_wall(
                     mat_name=awning_mats[(building_id + edge_idx + b_idx) % len(awning_mats)],
                 )
 
-        # Upper floor window quads (stone surround + projecting stone sill + glass pane + open wooden louvred shutters)
-        win_hw = 0.54
-        win_h = 1.52
-        fw_hw = win_hw + 0.15
-        for lvl in range(1, levels):
-            fl_z0 = base_z + ground_h + (lvl - 1) * upper_floor_h
-            sill_z = fl_z0 + 0.75
-            head_z = sill_z + win_h
-            d_f = 0.032
-            d_w = 0.052
-            d_s = 0.066
-            f0 = (mx - rx * fw_hw + nx * d_f, my - ry * fw_hw + ny * d_f, sill_z - 0.10)
-            f1 = (mx + rx * fw_hw + nx * d_f, my + ry * fw_hw + ny * d_f, sill_z - 0.10)
-            f2 = (mx + rx * fw_hw + nx * d_f, my + ry * fw_hw + ny * d_f, head_z + 0.16)
-            f3 = (mx - rx * fw_hw + nx * d_f, my - ry * fw_hw + ny * d_f, head_z + 0.16)
-            collector.add_quad("Buildings_Details", "mat_stone_mizzi", f0, f1, f2, f3, expected_normal=(nx, ny, 0.0))
+            # Upper floor window quads (stone surround + projecting stone sill + glass pane + open wooden louvred shutters)
+            win_hw = 0.54
+            win_h = 1.52
+            fw_hw = win_hw + 0.15
+            for lvl in range(1, levels):
+                fl_z0 = base_z + ground_h + (lvl - 1) * upper_floor_h
+                sill_z = fl_z0 + 0.75
+                head_z = sill_z + win_h
+                d_f = 0.032
+                d_w = 0.052
+                d_s = 0.066
+                f0 = (mx - rx * fw_hw + nx * d_f, my - ry * fw_hw + ny * d_f, sill_z - 0.10)
+                f1 = (mx + rx * fw_hw + nx * d_f, my + ry * fw_hw + ny * d_f, sill_z - 0.10)
+                f2 = (mx + rx * fw_hw + nx * d_f, my + ry * fw_hw + ny * d_f, head_z + 0.16)
+                f3 = (mx - rx * fw_hw + nx * d_f, my - ry * fw_hw + ny * d_f, head_z + 0.16)
+                collector.add_quad("Buildings_Details", "mat_stone_mizzi", f0, f1, f2, f3, expected_normal=(nx, ny, 0.0))
 
-            collector.add_oriented_box(
-                "Buildings_Details",
-                "mat_stone_boss",
-                (mx - rx * (fw_hw + 0.05), my - ry * (fw_hw + 0.05)),
-                (mx + rx * (fw_hw + 0.05), my + ry * (fw_hw + 0.05)),
-                sill_z - 0.12,
-                sill_z + 0.02,
-                0.0,
-                0.15,
-                normal_xy,
-                cap_ends=False,
-            )
+                collector.add_oriented_box(
+                    "Buildings_Details",
+                    "mat_stone_boss",
+                    (mx - rx * (fw_hw + 0.05), my - ry * (fw_hw + 0.05)),
+                    (mx + rx * (fw_hw + 0.05), my + ry * (fw_hw + 0.05)),
+                    sill_z - 0.12,
+                    sill_z + 0.02,
+                    0.0,
+                    0.15,
+                    normal_xy,
+                    cap_ends=False,
+                )
 
-            w0 = (mx - rx * win_hw + nx * d_w, my - ry * win_hw + ny * d_w, sill_z)
-            w1 = (mx + rx * win_hw + nx * d_w, my + ry * win_hw + ny * d_w, sill_z)
-            w2 = (mx + rx * win_hw + nx * d_w, my + ry * win_hw + ny * d_w, head_z)
-            w3 = (mx - rx * win_hw + nx * d_w, my - ry * win_hw + ny * d_w, head_z)
-            collector.add_quad("Buildings_Openings", "mat_wood_doors", w0, w1, w2, w3, uv_rect=WOOD_DOOR_UV["window_glass"], expected_normal=(nx, ny, 0.0))
+                w0 = (mx - rx * win_hw + nx * d_w, my - ry * win_hw + ny * d_w, sill_z)
+                w1 = (mx + rx * win_hw + nx * d_w, my + ry * win_hw + ny * d_w, sill_z)
+                w2 = (mx + rx * win_hw + nx * d_w, my + ry * win_hw + ny * d_w, head_z)
+                w3 = (mx - rx * win_hw + nx * d_w, my - ry * win_hw + ny * d_w, head_z)
+                collector.add_quad("Buildings_Openings", "mat_wood_doors", w0, w1, w2, w3, uv_rect=WOOD_DOOR_UV["window_glass"], expected_normal=(nx, ny, 0.0))
 
-            for sh_sign in (-1.0, 1.0):
-                sh_c = sh_sign * (win_hw + 0.19)
-                sh_hw = 0.17
-                s0 = (mx + rx * (sh_c - sh_hw) + nx * d_s, my + ry * (sh_c - sh_hw) + ny * d_s, sill_z + 0.02)
-                s1 = (mx + rx * (sh_c + sh_hw) + nx * d_s, my + ry * (sh_c + sh_hw) + ny * d_s, sill_z + 0.02)
-                s2 = (mx + rx * (sh_c + sh_hw) + nx * d_s, my + ry * (sh_c + sh_hw) + ny * d_s, head_z - 0.02)
-                s3 = (mx + rx * (sh_c - sh_hw) + nx * d_s, my + ry * (sh_c - sh_hw) + ny * d_s, head_z - 0.02)
-                collector.add_quad("Buildings_Openings", "mat_wood_doors", s0, s1, s2, s3, uv_rect=WOOD_DOOR_UV["shutter_louvre"], expected_normal=(nx, ny, 0.0))
+                for sh_sign in (-1.0, 1.0):
+                    sh_c = sh_sign * (win_hw + 0.19)
+                    sh_hw = 0.17
+                    s0 = (mx + rx * (sh_c - sh_hw) + nx * d_s, my + ry * (sh_c - sh_hw) + ny * d_s, sill_z + 0.02)
+                    s1 = (mx + rx * (sh_c + sh_hw) + nx * d_s, my + ry * (sh_c + sh_hw) + ny * d_s, sill_z + 0.02)
+                    s2 = (mx + rx * (sh_c + sh_hw) + nx * d_s, my + ry * (sh_c + sh_hw) + ny * d_s, head_z - 0.02)
+                    s3 = (mx + rx * (sh_c - sh_hw) + nx * d_s, my + ry * (sh_c - sh_hw) + ny * d_s, head_z - 0.02)
+                    collector.add_quad("Buildings_Openings", "mat_wood_doors", s0, s1, s2, s3, uv_rect=WOOD_DOOR_UV["shutter_louvre"], expected_normal=(nx, ny, 0.0))
 
     # Projecting roof cornice strip
     collector.add_oriented_box(
@@ -1248,7 +1306,7 @@ def _build_lod2_building(
         z_split = base_z + ground_h
         collector.add_quad(
             "Buildings_Walls", ground_pier_mat,
-            (p0[0], p0[1], base_z - 1.2), (p1[0], p1[1], base_z - 1.2),
+            (p0[0], p0[1], base_z - 9.5), (p1[0], p1[1], base_z - 9.5),
             (p1[0], p1[1], z_split), (p0[0], p0[1], z_split),
             expected_normal=(nx, ny, 0.0),
         )
@@ -1297,6 +1355,8 @@ def _build_lod2_building(
                     continue
                 bx = p0[0] + tx * mid_u
                 by = p0[1] + ty * mid_u
+                if not is_bay_clearance_valid(bx, by, tx, ty, nx, ny, building_id, edge_idx=i, half_w=0.8):
+                    continue
 
                 # Ground-floor arched doorway / shopfront with 3D stone voussoirs
                 if w_i % 2 == 0 or n_wins == 1:
@@ -1378,8 +1438,9 @@ def _build_lod2_building(
     xs = [p[0] for p in pts]
     ys = [p[1] for p in pts]
     if has_dome or (building_id % 3 == 0 and (max(xs) - min(xs)) >= 5.5 and (max(ys) - min(ys)) >= 5.5):
-        cx, cy = sum(xs) / len(xs), sum(ys) / len(ys)
-        collector.add_dome("Buildings_Details", "mat_stone_ashlar_aged", (cx, cy, roof_z + 0.55), radius=1.95, height=1.40, rings=4, segments=8)
+        safe_pt = _find_safe_roof_interior_point(pts, 2.35)
+        if safe_pt is not None:
+            collector.add_dome("Buildings_Details", "mat_stone_ashlar_aged", (safe_pt[0], safe_pt[1], roof_z + 0.55), radius=1.95, height=1.40, rings=4, segments=8)
 
 
 # ==============================================================================
@@ -1415,8 +1476,12 @@ def build_building_from_footprint(
     register_scene_building_ring(building_id, pts)
 
     levels = max(1, min(4, levels))
-    ground_h = 5.1 if levels == 1 else 4.0
-    upper_floor_h = 3.3
+    if is_hero:
+        ground_h = 5.1 if levels == 1 else 4.0
+        upper_floor_h = 3.3
+    else:
+        ground_h = 4.8 if levels == 1 else (3.85 + (building_id % 5) * 0.11)
+        upper_floor_h = 3.15 + ((building_id // 3) % 5) * 0.10
     total_wall_h = ground_h + (levels - 1) * upper_floor_h
     roof_z = base_z + total_wall_h
 
@@ -1432,8 +1497,8 @@ def build_building_from_footprint(
     span_y = max(ys) - min(ys)
 
     corridor_dist = corridor_distance(cx, cy)
-    in_r01_core = (-45.0 <= cx <= 165.0 and -45.0 <= cy <= 65.0 and corridor_dist <= 18.0)
-    if is_hero or in_r01_core:
+    # City-wide LOD 0 along all major thoroughfares across all quarters (no landmark-only restriction!)
+    if is_hero or corridor_dist <= 13.5:
         lod_tier = 0
     elif corridor_dist <= 65.0:
         lod_tier = 1
@@ -1476,10 +1541,10 @@ def build_building_from_footprint(
         d_out = corridor_distance(wall_mx + nx * 3.5, wall_my + ny * 3.5)
         d_in = corridor_distance(wall_mx - nx * 2.0, wall_my - ny * 2.0)
         wall_corridor_dist = min(d_mid, d_out)
-        faces_away = (d_out > d_in + 1.4) and (wall_corridor_dist > 14.0)
+        faces_away = (d_out > d_in + 0.6) and not is_hero
 
         # Even on a LOD 0 building, rear/courtyard walls that face away from the street use LOD 1!
-        if lod_tier == 1 or wall_corridor_dist > 26.0 or faces_away:
+        if lod_tier == 1 or (not is_hero and (wall_corridor_dist > 11.0 or faces_away)):
             _build_lod1_wall(
                 collector,
                 p0,
@@ -1498,13 +1563,13 @@ def build_building_from_footprint(
             continue
 
         # --- LOD 0 Street-Facing Facade Wall ---
-        # Enforce a strict >= 1.50m solid stone corner margin at both ends of every wall segment
-        # (and skip ground-floor shop bays on any wall segment shorter than 4.8m!)
-        corner_margin = 1.50
-        if edge_len < 4.8:
+        # Hero buildings in r01 keep >= 1.50m corner margin & 4.8m min bay edge; regular Old City buildings adapt down to 2.75m facades
+        corner_margin = 1.50 if is_hero else min(1.15, max(0.35, (edge_len - 2.15) * 0.40))
+        min_bay_edge = 4.80 if is_hero else 2.75
+        if edge_len < min_bay_edge:
             collector.add_quad(
                 "Buildings_Walls", ground_pier_mat,
-                (p0[0], p0[1], base_z - 1.5), (p1[0], p1[1], base_z - 1.5),
+                (p0[0], p0[1], base_z - 9.5), (p1[0], p1[1], base_z - 9.5),
                 (p1[0], p1[1], base_z + ground_h), (p0[0], p0[1], base_z + ground_h),
                 expected_normal=(nx, ny, 0.0),
             )
@@ -1528,16 +1593,16 @@ def build_building_from_footprint(
             num_bays = max(1, int(round(inner_len / target_bay_w)))
             bay_w = inner_len / num_bays
 
-            # Solid 1.50m corner piers on Ground Floor extending down to `base_z - 1.5m`
+            # Solid 1.50m corner piers on Ground Floor extending down to `base_z - 9.5m`
             collector.add_quad(
                 "Buildings_Walls", ground_pier_mat,
-                (p0[0], p0[1], base_z - 1.5), (c_left[0], c_left[1], base_z - 1.5),
+                (p0[0], p0[1], base_z - 9.5), (c_left[0], c_left[1], base_z - 9.5),
                 (c_left[0], c_left[1], base_z + ground_h), (p0[0], p0[1], base_z + ground_h),
                 expected_normal=(nx, ny, 0.0),
             )
             collector.add_quad(
                 "Buildings_Walls", ground_pier_mat,
-                (c_right[0], c_right[1], base_z - 1.5), (p1[0], p1[1], base_z - 1.5),
+                (c_right[0], c_right[1], base_z - 9.5), (p1[0], p1[1], base_z - 9.5),
                 (p1[0], p1[1], base_z + ground_h), (c_right[0], c_right[1], base_z + ground_h),
                 expected_normal=(nx, ny, 0.0),
             )
@@ -1629,7 +1694,7 @@ def build_building_from_footprint(
                 else:
                     collector.add_quad(
                         "Buildings_Walls", ground_pier_mat,
-                        (b_p0[0], b_p0[1], base_z - 1.5), (b_p1[0], b_p1[1], base_z - 1.5),
+                        (b_p0[0], b_p0[1], base_z - 9.5), (b_p1[0], b_p1[1], base_z - 9.5),
                         (b_p1[0], b_p1[1], base_z + ground_h), (b_p0[0], b_p0[1], base_z + ground_h),
                         expected_normal=(nx, ny, 0.0),
                     )
@@ -1672,7 +1737,10 @@ def build_building_from_footprint(
                     b_p1 = (c_left[0] + tx * ((b_idx + 1) * bay_w), c_left[1] + ty * ((b_idx + 1) * bay_w))
                     is_stepback_over_pavilion = (building_id == 7002 and (nx < -0.5 or wall_my > 16.0))
                     if bay_w >= 1.85 and bay_clear_flags[b_idx] and not (is_stepback_over_pavilion and lvl == 1):
-                        use_balcony = (all_upper_balconies or (is_hero and lvl == 1 and b_idx == num_bays // 2)) and not is_stepback_over_pavilion
+                        use_balcony = (
+                            all_upper_balconies
+                            or (lvl == 1 and b_idx == num_bays // 2 and (is_hero or building_id % 4 == 0))
+                        ) and not is_stepback_over_pavilion
                         build_upper_window_bay(
                             collector,
                             b_p0,
@@ -1766,31 +1834,36 @@ def build_building_from_footprint(
     collector.add_polygon_3d("Buildings_Walls", "mat_plaster", roof_pts, uv_scale=0.25)
 
     # 5. Ottoman Roof Dome or Rooftop Solar Water Heater (`Dud Shemesh`) + AC Clutter
+    # Strictly verified with `_find_safe_roof_interior_point` so concave or L-shaped buildings
+    # NEVER spawn floating domes or rooftop boilers outside their roof polygon!
     if min(span_x, span_y) >= 6.0 and lod_tier <= 1:
-        if has_dome or (building_id % 4 == 0):
-            dome_r = min(2.6, min(span_x, span_y) * 0.24)
-            collector.add_cylinder(
-                "Buildings_Details",
-                trim_stone_mat,
-                (cx, cy, roof_z + 0.15),
-                dome_r * 1.04,
-                dome_r,
-                0.55,
-                segments=8,
-                smooth=False,
-            )
-            collector.add_dome(
-                "Buildings_Details",
-                "mat_plaster",
-                (cx, cy, roof_z + 0.70),
-                radius=dome_r,
-                height=dome_r * 0.78,
-                rings=3,
-                segments=8,
-                smooth=True,
-            )
-        if lod_tier == 0 and (building_id % 2 == 0 or is_hero):
-            build_rooftop_clutter(collector, cx, cy, roof_z + 0.15, span_x, span_y, seed=building_id)
+        dome_r = min(2.6, min(span_x, span_y) * 0.24)
+        safe_pt = _find_safe_roof_interior_point(pts, max(2.1, dome_r + 0.45))
+        if safe_pt is not None:
+            rx_in, ry_in = safe_pt
+            if has_dome or (building_id % 4 == 0):
+                collector.add_cylinder(
+                    "Buildings_Details",
+                    trim_stone_mat,
+                    (rx_in, ry_in, roof_z + 0.15),
+                    dome_r * 1.04,
+                    dome_r,
+                    0.55,
+                    segments=8,
+                    smooth=False,
+                )
+                collector.add_dome(
+                    "Buildings_Details",
+                    "mat_plaster",
+                    (rx_in, ry_in, roof_z + 0.70),
+                    radius=dome_r,
+                    height=dome_r * 0.78,
+                    rings=3,
+                    segments=8,
+                    smooth=True,
+                )
+            elif lod_tier <= 1 and (building_id % 2 == 0 or is_hero):
+                build_rooftop_clutter(collector, rx_in, ry_in, roof_z + 0.15, span_x, span_y, seed=building_id)
 
 
 # ==============================================================================

@@ -218,6 +218,110 @@ class MeshCollector:
     ) -> None:
         if len(pts_3d) < 3:
             return
+        zs = [float(p[2]) for p in pts_3d]
+        # For horizontal roof/floor polygons, use strict 2D ear-clipping with interior-point verification
+        # so concave building polygons never generate triangles that bridge across street cutouts!
+        if (max(zs) - min(zs)) < 0.25 and len(pts_3d) >= 4:
+            clean_pts: List[Vec3] = []
+            for p in pts_3d:
+                pt = (float(p[0]), float(p[1]), float(p[2]))
+                if not clean_pts or math.hypot(pt[0] - clean_pts[-1][0], pt[1] - clean_pts[-1][1]) > 1e-4:
+                    clean_pts.append(pt)
+            if len(clean_pts) >= 2 and math.hypot(clean_pts[0][0] - clean_pts[-1][0], clean_pts[0][1] - clean_pts[-1][1]) <= 1e-4:
+                clean_pts.pop()
+            if len(clean_pts) < 3:
+                return
+            area2 = 0.0
+            for i in range(len(clean_pts)):
+                x0, y0, _ = clean_pts[i]
+                x1, y1, _ = clean_pts[(i + 1) % len(clean_pts)]
+                area2 += x0 * y1 - x1 * y0
+            if area2 < 0.0:
+                clean_pts.reverse()
+
+            orig_2d = [(p[0], p[1]) for p in clean_pts]
+
+            def _pt_in_orig(px: float, py: float) -> bool:
+                inside = False
+                n_o = len(orig_2d)
+                for k in range(n_o):
+                    x0, y0 = orig_2d[k]
+                    x1, y1 = orig_2d[(k + 1) % n_o]
+                    if (y0 > py) != (y1 > py):
+                        x_int = (x1 - x0) * (py - y0) / (y1 - y0 + 1e-12) + x0
+                        if px < x_int:
+                            inside = not inside
+                return inside
+
+            def _pt_in_tri(px: float, py: float, a: Vec3, b: Vec3, c: Vec3) -> bool:
+                c1 = (b[0] - a[0]) * (py - a[1]) - (b[1] - a[1]) * (px - a[0])
+                c2 = (c[0] - b[0]) * (py - b[1]) - (c[1] - b[1]) * (px - b[0])
+                c3 = (a[0] - c[0]) * (py - c[1]) - (a[1] - c[1]) * (px - c[0])
+                return (c1 >= -1e-5 and c2 >= -1e-5 and c3 >= -1e-5)
+
+            rem = list(clean_pts)
+            guard = 0
+            while len(rem) > 3 and guard < len(clean_pts) * 4:
+                guard += 1
+                m = len(rem)
+                ear_found = False
+                for i in range(m):
+                    p_prev = rem[(i - 1) % m]
+                    p_curr = rem[i]
+                    p_next = rem[(i + 1) % m]
+                    cross = (p_curr[0] - p_prev[0]) * (p_next[1] - p_prev[1]) - (p_curr[1] - p_prev[1]) * (p_next[0] - p_prev[0])
+                    if cross <= 1e-5:
+                        continue
+                    mx = (p_prev[0] + p_curr[0] + p_next[0]) / 3.0
+                    my = (p_prev[1] + p_curr[1] + p_next[1]) / 3.0
+                    if not _pt_in_orig(mx, my):
+                        continue
+                    has_v_inside = False
+                    for j in range(m):
+                        if j in ((i - 1) % m, i, (i + 1) % m):
+                            continue
+                        vj = rem[j]
+                        if _pt_in_tri(vj[0], vj[1], p_prev, p_curr, p_next):
+                            has_v_inside = True
+                            break
+                    if not has_v_inside:
+                        if flip_normal:
+                            self.add_tri(group, mat_name, p_next, p_curr, p_prev, uv_scale=uv_scale, smooth=smooth, double_sided=True)
+                        else:
+                            self.add_tri(group, mat_name, p_prev, p_curr, p_next, uv_scale=uv_scale, smooth=smooth, double_sided=True)
+                        rem.pop(i)
+                        ear_found = True
+                        break
+                if not ear_found:
+                    # Fallback pass: clip any remaining triangle whose centroid is strictly inside the polygon
+                    clipped_any = False
+                    for i in range(m):
+                        p_prev = rem[(i - 1) % m]
+                        p_curr = rem[i]
+                        p_next = rem[(i + 1) % m]
+                        cross = (p_curr[0] - p_prev[0]) * (p_next[1] - p_prev[1]) - (p_curr[1] - p_prev[1]) * (p_next[0] - p_prev[0])
+                        mx = (p_prev[0] + p_curr[0] + p_next[0]) / 3.0
+                        my = (p_prev[1] + p_curr[1] + p_next[1]) / 3.0
+                        if cross > 1e-6 and _pt_in_orig(mx, my):
+                            if flip_normal:
+                                self.add_tri(group, mat_name, p_next, p_curr, p_prev, uv_scale=uv_scale, smooth=smooth, double_sided=True)
+                            else:
+                                self.add_tri(group, mat_name, p_prev, p_curr, p_next, uv_scale=uv_scale, smooth=smooth, double_sided=True)
+                            rem.pop(i)
+                            clipped_any = True
+                            break
+                    if not clipped_any:
+                        break
+            if len(rem) == 3:
+                mx = (rem[0][0] + rem[1][0] + rem[2][0]) / 3.0
+                my = (rem[0][1] + rem[1][1] + rem[2][1]) / 3.0
+                if _pt_in_orig(mx, my):
+                    if flip_normal:
+                        self.add_tri(group, mat_name, rem[2], rem[1], rem[0], uv_scale=uv_scale, smooth=smooth, double_sided=True)
+                    else:
+                        self.add_tri(group, mat_name, rem[0], rem[1], rem[2], uv_scale=uv_scale, smooth=smooth, double_sided=True)
+            return
+
         bm, uv_layer = self.get_bm(group, mat_name)
         ordered = list(reversed(pts_3d)) if flip_normal else list(pts_3d)
         verts = [bm.verts.new(Vector(p)) for p in ordered]
@@ -1557,21 +1661,23 @@ def build_rooftop_clutter(
     seed: int = 0,
 ) -> None:
     rng = random.Random(seed + int(cx * 13 + cy * 19))
-    ox = rng.uniform(-min(2.2, span_x * 0.22), min(2.2, span_x * 0.22))
-    oy = rng.uniform(-min(2.2, span_y * 0.22), min(2.2, span_y * 0.22))
+    ox = rng.uniform(-0.35, 0.35)
+    oy = rng.uniform(-0.35, 0.35)
     tx = cx + ox
     ty = cy + oy
 
-    collector.add_cylinder("StreetProps", "mat_plaster", (tx, ty, roof_z + 0.42), 0.28, 0.28, 1.05, segments=6, smooth=True)
-    collector.add_dome("StreetProps", "mat_plaster", (tx, ty, roof_z + 1.47), radius=0.28, height=0.12, rings=2, segments=6)
+    # Grounded steel base frame + cylindrical solar boiler tank sitting directly on roof_z
+    collector.add_box("StreetProps", "mat_iron_dark", (tx, ty - 0.35, roof_z + 0.16), (0.95, 1.15, 0.32))
+    collector.add_cylinder("StreetProps", "mat_plaster", (tx, ty, roof_z + 0.25), 0.28, 0.28, 1.05, segments=6, smooth=True)
+    collector.add_dome("StreetProps", "mat_plaster", (tx, ty, roof_z + 1.30), radius=0.28, height=0.12, rings=2, segments=6)
 
-    p_bot0 = (tx - 0.55, ty - 1.15, roof_z + 0.12)
-    p_bot1 = (tx + 0.55, ty - 1.15, roof_z + 0.12)
-    p_top1 = (tx + 0.55, ty - 0.25, roof_z + 1.08)
-    p_top0 = (tx - 0.55, ty - 0.25, roof_z + 1.08)
+    p_bot0 = (tx - 0.48, ty - 0.95, roof_z + 0.06)
+    p_bot1 = (tx + 0.48, ty - 0.95, roof_z + 0.06)
+    p_top1 = (tx + 0.48, ty - 0.15, roof_z + 0.96)
+    p_top0 = (tx - 0.48, ty - 0.15, roof_z + 0.96)
     collector.add_quad("StreetProps", "mat_trash_blue", p_bot0, p_bot1, p_top1, p_top0, uv_scale=0.5, double_sided=True)
 
-    ac_x = cx - ox * 0.7
-    ac_y = cy - oy * 0.7
-    collector.add_box("StreetProps", "mat_plaster", (ac_x, ac_y, roof_z + 0.32), (0.78, 0.34, 0.56), rot_z=0.2)
+    ac_x = cx - ox * 0.5 + 0.65
+    ac_y = cy - oy * 0.5
+    collector.add_box("StreetProps", "mat_plaster", (ac_x, ac_y, roof_z + 0.28), (0.76, 0.34, 0.56), rot_z=0.2)
     collector.bump_count("rooftop_units")
