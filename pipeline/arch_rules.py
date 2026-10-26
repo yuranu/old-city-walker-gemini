@@ -27,6 +27,7 @@ import math
 import random
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
+from fetch_osm_and_dem import street_elevation_z as _global_street_elevation_z
 from props_lib import (
     MeshCollector,
     UVRect,
@@ -2307,7 +2308,7 @@ def build_jaffa_gate_monument(
     for my_n in (9.6, 11.8, 14.0):
         collector.add_box("CityWalls", "mat_stone_ashlar_aged", (-8.15, my_n, 14.5), (0.65, 1.35, 1.4))
 
-    # --- D. Northern & Southern Ottoman City Wall Segments (Overlapped & Mitered with Corner Bastions) ---
+    # --- D. Northern Ottoman City Wall Segment & Southern Citadel Moat Rampart Parapet ---
     nw_wall_pts = [
         (-6.2, 14.8),
         (-14.0, 26.0),
@@ -2315,12 +2316,7 @@ def build_jaffa_gate_monument(
         (-48.0, 82.0),
         (-74.0, 122.0),
     ]
-    sw_wall_pts = [
-        (16.0, -76.0),
-        (16.0, -138.0),
-        (115.0, -138.0),
-    ]
-    for wall_chain in (nw_wall_pts, sw_wall_pts):
+    for wall_chain in (nw_wall_pts,):
         for j_pt in wall_chain[1:-1]:
             collector.add_box("CityWalls", "mat_stone_boss", (j_pt[0], j_pt[1], 1.5), (3.1, 3.1, 8.0))
             collector.add_box("CityWalls", "mat_stone_ashlar_aged", (j_pt[0], j_pt[1], 9.15), (2.7, 2.7, 7.3))
@@ -2343,6 +2339,53 @@ def build_jaffa_gate_monument(
                 mp0 = (wp0[0] + tx * u0, wp0[1] + ty * u0)
                 mp1 = (wp0[0] + tx * u1, wp0[1] + ty * u1)
                 collector.add_oriented_box("CityWalls", "mat_stone_ashlar_aged", mp0, mp1, 12.8, 14.1, 0.4, 1.2, (nx, ny), cap_back=True)
+
+    # Southern Citadel Moat & Maronite Convent St Rampart Promenade (`x = 11.2..16.2, y = -138.0..-32.0`):
+    # Waist-high crenellated western rampart parapet (`x = 10.6`) overlooking the valley + eastern iron handrail (`x = 15.8`)
+    # + recessed pointed-arch casemate vaults along the lower Citadel moat scarp (`x = 16.0, y = -68..-34`)
+    for y_cas in (-62.0, -54.0, -46.0, -38.0):
+        add_arched_opening_panel(
+            collector,
+            "CityWalls",
+            "mat_stone_rubble",
+            (15.92, y_cas),
+            -3.6,
+            2.2,
+            1.45,
+            3.2,
+            0.02,
+            (0.0, -1.0),
+            (-1.0, 0.0),
+            uv_rect=(0.0, 0.0, 1.0, 1.0),
+            num_voussoirs=9,
+            add_wall_spandrel=False,
+        )
+        add_arch_voussoirs(
+            collector,
+            "CityWalls",
+            "mat_stone_boss",
+            (15.92, y_cas, 2.2),
+            (0.0, -1.0),
+            (-1.0, 0.0),
+            span_w=3.35,
+            arch_h=1.50,
+            ring_thickness=0.38,
+            offset_n0=-0.04,
+            offset_n1=0.24,
+            num_voussoirs=9,
+        )
+    for y_seg in range(-136, -74, 4):
+        ym_s = float(y_seg) + 2.0
+        pz_s = _global_street_elevation_z(13.8, ym_s)
+        # Western stone rampart parapet wall (`x = 10.6`, waist-high `1.45m` with stepped merlons)
+        collector.add_box("CityWalls", "mat_stone_boss", (10.6, ym_s, pz_s - 1.2), (1.1, 4.05, 5.2), uv_scale=0.24)
+        if (y_seg // 4) % 2 == 0:
+            collector.add_box("CityWalls", "mat_stone_ashlar_aged", (10.6, ym_s, pz_s + 1.85), (0.95, 2.2, 0.95), uv_scale=0.28)
+        # Eastern wrought-iron safety railing (`x = 16.2`) along Maronite Convent St
+        collector.add_box("StreetProps", "mat_iron_dark", (16.2, ym_s, pz_s + 0.98), (0.06, 4.05, 0.06))
+        collector.add_box("StreetProps", "mat_iron_dark", (16.2, ym_s, pz_s + 0.52), (0.05, 4.05, 0.05))
+        for p_dy in (-1.5, 0.0, 1.5):
+            collector.add_box("StreetProps", "mat_iron_dark", (16.2, ym_s + p_dy, pz_s + 0.50), (0.06, 0.06, 1.0))
 
 
 def build_citadel_and_tower_of_david(
@@ -2780,7 +2823,6 @@ def build_hero_omar_square_and_david_street(
         (7107, [(128.0, -9.5), (144.0, -9.5), (144.0, -1.0), (128.0, -1.0)]),
         (7108, [(144.0, 5.0), (158.0, 5.0), (158.0, 13.5), (144.0, 13.5)]),
         (7109, [(144.0, -9.5), (158.0, -9.5), (158.0, -1.0), (144.0, -1.0)]),
-        (7200, [(157.5, -11.0), (168.5, -11.0), (168.5, 15.0), (157.5, 15.0)]),
     ]
     for hid, hring in hero_rings:
         register_scene_building_ring(hid, hring)
@@ -2804,6 +2846,81 @@ def build_hero_omar_square_and_david_street(
     omar_uv = get_sign_uv(sign_atlas, "omar_sq_plaque")
     build_street_name_plate(collector, (18.85, 9.96, bz_7001 + 2.45), (0.0, -1.0), omar_uv, width=0.92, height=0.52)
     build_street_name_plate(collector, (21.24, 12.35, bz_7001 + 2.45), (1.0, 0.0), omar_uv, width=0.92, height=0.52)
+
+    # 2-Storey White Limestone Tourist Information Office Wing (`x = 6.2..19.2, y = 5.2..10.0`) abutting inner Jaffa Gate (`jaffa_gate_2_rev`)
+    tio_z = elev_fn(12.5, 7.5)
+    collector.add_box("Buildings_Walls", "mat_stone_mizzi", (12.7, 7.6, tio_z + 3.8), (13.0, 4.8, 7.6), uv_scale=0.24)
+    collector.add_box("Buildings_Details", "mat_stone_boss", (12.7, 7.6, tio_z + 3.95), (13.3, 5.1, 0.24), uv_scale=0.32)
+    collector.add_box("Buildings_Details", "mat_stone_boss", (12.7, 7.6, tio_z + 7.72), (13.5, 5.3, 0.34), uv_scale=0.30)
+    for tio_x in (9.5, 15.8):
+        add_arched_opening_panel(
+            collector,
+            "Buildings_Openings",
+            "mat_wood_doors",
+            (tio_x, 5.18),
+            tio_z,
+            tio_z + 2.25,
+            1.05,
+            2.15,
+            0.01,
+            (1.0, 0.0),
+            (0.0, -1.0),
+            uv_rect=WOOD_DOOR_UV["door_wood" if tio_x < 12.0 else "window_glass"],
+            num_voussoirs=7,
+            add_wall_spandrel=False,
+        )
+        add_arch_voussoirs(
+            collector,
+            "Buildings_Details",
+            "mat_stone_boss",
+            (tio_x, 5.18, tio_z + 2.25),
+            (1.0, 0.0),
+            (0.0, -1.0),
+            span_w=2.25,
+            arch_h=1.10,
+            ring_thickness=0.32,
+            offset_n0=-0.04,
+            offset_n1=0.20,
+            num_voussoirs=7,
+        )
+        add_arched_opening_panel(
+            collector,
+            "Buildings_Openings",
+            "mat_wood_doors",
+            (tio_x, 5.18),
+            tio_z + 4.45,
+            tio_z + 6.15,
+            0.68,
+            1.35,
+            0.01,
+            (1.0, 0.0),
+            (0.0, -1.0),
+            uv_rect=WOOD_DOOR_UV["window_glass"],
+            num_voussoirs=5,
+            add_wall_spandrel=False,
+        )
+        add_arch_voussoirs(
+            collector,
+            "Buildings_Details",
+            "mat_stone_boss",
+            (tio_x, 5.18, tio_z + 6.15),
+            (1.0, 0.0),
+            (0.0, -1.0),
+            span_w=1.42,
+            arch_h=0.70,
+            ring_thickness=0.26,
+            offset_n0=-0.04,
+            offset_n1=0.18,
+            num_voussoirs=5,
+        )
+    # Omar Square Foreground Furnishings (`jaffa_gate_2_fwd`): Red/White Shop Umbrella (`(23.5, 9.2)`), Stone Bench (`(26.2, 6.2)`), Trash Bin & Striped Security Block (`(33.2, -1.4)`)
+    umb_o_z = elev_fn(23.5, 9.2)
+    collector.add_branch_tube("StreetProps", "mat_iron_dark", (23.5, 9.2, umb_o_z), (23.5, 9.2, umb_o_z + 2.45), 0.05, 0.04, segments=6)
+    collector.add_branch_tube("StreetProps", "mat_awning_red", (23.5, 9.2, umb_o_z + 2.15), (23.5, 9.2, umb_o_z + 2.68), 1.55, 0.10, segments=8, cap_end=True)
+    bn_o_z = elev_fn(26.2, 6.2)
+    collector.add_box("StreetProps", "mat_stone_mizzi", (26.2, 6.2, bn_o_z + 0.25), (0.65, 2.1, 0.50), rot_z=math.radians(-18.0), uv_scale=0.35)
+    sb_o_z = elev_fn(33.2, -1.4)
+    collector.add_box("StreetProps", "mat_awning_red", (33.2, -1.4, sb_o_z + 0.42), (0.95, 0.95, 0.84), rot_z=math.radians(15.0), uv_scale=0.45)
 
     # --- 1B. 1-Storey High-Arched Corner Pavilion (`7012`, `x = 26.8..36.8, y = 11.2..19.5`, seen in `pair_omar_square_north.jpg`) ---
     bz_7012 = elev_fn(31.5, 11.2)
@@ -3080,20 +3197,6 @@ def build_hero_omar_square_and_david_street(
         )
         build_wall_lantern(collector, (arch_x, 2.0, az + 5.35), (0.0, 1.0), (-1.0, 0.0))
 
-    end_z = elev_fn(158.0, 2.0)
-    build_building_from_footprint(
-        collector,
-        [(157.5, -11.0), (168.5, -11.0), (168.5, 15.0), (157.5, 15.0)],
-        base_z=end_z,
-        levels=3,
-        sign_atlas=sign_atlas,
-        building_id=7200,
-        is_hero=True,
-        force_souq_ground=True,
-        has_dome=True,
-        forced_sign_key="old_city_bazaar",
-    )
-
     # --- 4. Western Mamilla Arcade Terrace & Hinnom Valley Retaining Wall Parapet ---
     # 4a. Continuous Stepped Limestone Retaining Wall & Parapet along the west edge of the Breach/Moat Road (`x = -2.5, y = -76..-14`)
     # and the West Plaza terrace (`(-38, -12) -> (-16, -9.5) -> (-2.5, -15.5)`) so there is zero empty road drop-off!
@@ -3109,6 +3212,19 @@ def build_hero_omar_square_and_david_street(
         z_surf = elev_fn(0.5 * (wp0[0] + wp1[0]), 0.5 * (wp0[1] + wp1[1]))
         collector.add_oriented_box("CityWalls", "mat_stone_boss", wp0, wp1, -6.0, z_surf + 0.85, -0.75, 0.0, (nx, ny), cap_back=True)
         collector.add_oriented_box("CityWalls", "mat_stone_mizzi", wp0, wp1, z_surf + 0.85, z_surf + 0.96, -0.82, 0.05, (nx, ny), cap_back=True)
+
+    # West Plaza Sunken Jaffa Road Retaining Wall, Blind Stone Arches & Pedestrian Guardrail (`(-35.0, -4.0) -> (-62.0, 12.0)`, `jaffa_gate_1_rev`)
+    for wg_i in range(6):
+        wt0 = wg_i / 6.0
+        wt1 = (wg_i + 1) / 6.0
+        wx0 = -35.0 + (-62.0 - -35.0) * wt0
+        wy0 = -4.0 + (12.0 - -4.0) * wt0
+        wx1 = -35.0 + (-62.0 - -35.0) * wt1
+        wy1 = -4.0 + (12.0 - -4.0) * wt1
+        wmx, wmy = 0.5 * (wx0 + wx1), 0.5 * (wy0 + wy1)
+        wz_s = elev_fn(wmx, wmy)
+        collector.add_oriented_box("CityWalls", "mat_stone_mizzi", (wx0, wy0), (wx1, wy1), wz_s - 2.5, wz_s + 0.92, -0.35, 0.35, (0.51, 0.86), cap_back=True)
+        collector.add_oriented_box("StreetProps", "mat_iron_dark", (wx0, wy0), (wx1, wy1), wz_s + 1.25, wz_s + 1.32, -0.04, 0.04, (0.51, 0.86), cap_back=True)
 
     # 4b. Detailed LOD 1 Mamilla Alrov Limestone Arcade Buildings overlooking the West Plaza (`x = -82..-66`)
     collector.add_box("CityWalls", "mat_stone_rubble", (-96.0, 0.0, -0.5), (18.0, 185.0, 9.5))
@@ -3139,7 +3255,5 @@ def build_hero_omar_square_and_david_street(
         m_roof_z = bz_m + 4.0 + (b_lvls - 1) * 3.3 + 0.15
         collector.add_polygon_3d("Buildings_Walls", "mat_plaster", [(p[0], p[1], m_roof_z) for p in ring_mamilla], uv_scale=0.25)
 
-    # 4c. Southern Horizon Curtain Wall & Armenian Quarter Terraced Backdrop (`y <= -76.0`, leaving Moat Road open!)
-    collector.add_box("CityWalls", "mat_stone_boss", (35.0, -88.0, 3.8), (160.0, 12.0, 19.6))
-    collector.add_box("CityWalls", "mat_stone_ashlar_aged", (35.0, -118.0, 5.0), (165.0, 28.0, 22.0))
-    collector.add_box("CityWalls", "mat_stone_boss", (-16.0, -84.0, 2.8), (38.0, 14.0, 17.6))
+    # Keep only the western extramural Hinnom slope backdrop (`x < 0`), leaving `x >= 8` (`Maronite Convent St` & `r04_armenian_quarter`) 100% open!
+    collector.add_box("CityWalls", "mat_stone_boss", (-18.0, -84.0, 2.8), (34.0, 14.0, 17.6))

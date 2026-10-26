@@ -52,18 +52,22 @@ PROCEDURAL_MONUMENT_BOXES: List[Tuple[str, Polygon]] = [
     ("holy_sepulchre", box(164.0, 150.0, 228.0, 220.0)),
     ("redeemer_muristan", box(220.0, 114.0, 286.0, 166.0)),
     ("new_gate", box(-154.0, 280.0, -120.0, 312.0)),
-    ("triple_souq", box(294.0, -40.0, 332.0, 160.0)),
+    ("triple_souq", box(300.5, -40.0, 322.0, 122.0)),
+    ("david_st_south_bazaar", box(200.0, 6.0, 298.0, 18.0)),
     ("suq_al_qattanin", box(520.0, 136.0, 618.0, 156.0)),
-    ("chain_street_turbas", box(434.0, 26.0, 536.0, 54.0)),
+    ("chain_street_turbas", box(434.0, 14.0, 536.0, 52.0)),
     ("st_james_cathedral", box(114.0, -246.0, 152.0, -212.0)),
+    ("st_james_north_compound", box(140.0, -160.0, 172.0, -140.0)),
+    ("ararat_st_corner_house", box(192.0, -118.0, 213.0, -96.0)),
     ("armenian_monastery_west", box(42.0, -350.0, 62.0, -180.0)),
     ("zion_gate_and_lane", box(146.0, -418.0, 208.0, -376.0)),
-    ("hurva_synagogue", box(330.0, -154.0, 386.0, -100.0)),
-    ("roman_cardo", box(296.0, -196.0, 320.0, -52.0)),
+    ("hurva_synagogue", box(330.0, -154.0, 384.0, -102.0)),
+    ("roman_cardo", box(296.0, -196.0, 322.0, -52.0)),
     ("four_sephardic_synagogues", box(336.0, -252.0, 382.0, -224.0)),
-    ("broad_wall", box(322.0, -98.0, 348.0, -64.0)),
+    ("broad_wall", box(326.0, -94.0, 345.0, -66.0)),
     ("tiferet_yisrael", box(426.0, -148.0, 452.0, -122.0)),
     ("batei_mahaseh", box(420.0, -336.0, 454.0, -304.0)),
+    ("batei_mahaseh_north_block", box(345.0, -311.5, 378.0, -301.5)),
     ("western_wall_herodian", box(662.0, -90.0, 674.0, 72.0)),
     ("wilsons_arch_tankiziyya", box(638.0, 44.0, 670.0, 68.0)),
     ("beit_strauss_north_plaza", box(594.0, 24.0, 644.0, 49.0)),
@@ -94,7 +98,7 @@ KNOWN_OPEN_ESPLANADES: List[Polygon] = [
     box(550.0, -250.0, 675.0, -50.0),    # Ophel / Davidson Archaeological Park near Dung Gate
     box(225.0, 512.0, 290.0, 600.0),     # Damascus Gate Amphitheater Plaza
     box(765.0, 450.0, 890.0, 558.0),     # Bethesda Pools / St. Anne Courtyard / Lions' Gate
-    box(205.0, -400.0, 365.0, -255.0),   # Southern Jewish Quarter Parking / Rampart Overlook / Batei Mahaseh approach
+    box(205.0, -400.0, 430.0, -255.0),   # Southern Jewish Quarter Parking / Rampart Overlook / Batei Mahaseh & Gan HaTekuma approach
 ]
 
 
