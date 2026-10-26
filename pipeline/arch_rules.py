@@ -3031,19 +3031,7 @@ def build_hero_omar_square_and_david_street(
             forced_sign_key=s_key,
         )
 
-    # Northern Christian Quarter Closure Building (`7007`) at north end of Latin Patriarchate Road
-    build_building_from_footprint(
-        collector,
-        [(15.0, 57.5), (39.0, 57.5), (39.0, 70.0), (15.0, 70.0)],
-        base_z=elev_fn(24.0, 58.0),
-        levels=3,
-        sign_atlas=sign_atlas,
-        building_id=7007,
-        is_hero=True,
-        force_souq_ground=True,
-        has_dome=True,
-        forced_sign_key="swedish_study",
-    )
+    # North end of Latin Patriarchate Road (`y = 58.0`) left open to connect directly into `r02_christian_quarter`!
 
     # Overhead stone `qantara` flying-buttress arches placed strictly at solid `3.0m` building-junction piers (`y = 28.2, 41.0, 56.8`)!
     # Supported by upper-wall stone corbels (`z = az + 4.1m`) so zero ground piers block the street and zero windows/shutters clip!

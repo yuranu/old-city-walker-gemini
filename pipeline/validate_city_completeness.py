@@ -238,11 +238,13 @@ def validate_city() -> int:
     for b in osm_jaffa.get("buildings", []):
         if "building" not in b.get("tags", {}):
             continue
-        cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
-        if cx > 170.0 or cy > 90.0 or cy < -105.0:
-            continue
-        if (76.0 <= cx <= 170.0 and -13.0 <= cy <= 17.0) or (4.0 <= cx <= 88.0 and -42.0 <= cy <= 29.0) or (7.0 <= cx <= 49.0 and 22.0 <= cy <= 72.0):
-            continue
+        oid = int(b.get("osm_id", 0))
+        if oid < 9100000:
+            cx, cy = float(b["centroid"][0]), float(b["centroid"][1])
+            if cx > 170.0 or cy > 90.0 or cy < -105.0:
+                continue
+            if (76.0 <= cx <= 170.0 and -13.0 <= cy <= 17.0) or (4.0 <= cx <= 88.0 and -42.0 <= cy <= 29.0) or (7.0 <= cx <= 49.0 and 22.0 <= cy <= 72.0):
+                continue
         ring = b.get("ring", [])
         if len(ring) >= 3:
             p = Polygon(ring)
@@ -251,7 +253,15 @@ def validate_city() -> int:
             if not p.is_empty and 4.0 <= p.area <= 2500.0:
                 b_polys.append(p)
 
-    monument_polys = [poly for _, poly in PROCEDURAL_MONUMENT_BOXES]
+    # Include over-street bridge-building footprints (`tunnel_passages`) in monument_polys so their
+    # intentional over-street roofs and domes are recognized as supported structures
+    tunnel_polys: List[Polygon] = []
+    for tp in osm_data.get("tunnel_passages", []):
+        ls_tp = LineString([(float(tp["x0"]), float(tp["y0"])), (float(tp["x1"]), float(tp["y1"]))])
+        if ls_tp.length >= 1.0:
+            tunnel_polys.append(ls_tp.buffer(float(tp.get("half_width", 1.65)) + 0.85, cap_style=2, join_style=2))
+
+    monument_polys = [poly for _, poly in PROCEDURAL_MONUMENT_BOXES] + tunnel_polys
     all_solid_footprints = unary_union(b_polys + monument_polys)
     ray_targets = b_polys + monument_polys + [wall_boundary.buffer(1.5)]
     ray_tree = STRtree(ray_targets)
