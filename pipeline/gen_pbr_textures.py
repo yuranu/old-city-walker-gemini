@@ -1449,6 +1449,81 @@ def gen_sign_atlas(width=2048, height=1024):
     print(f"  [OK] Saved sign atlas: sign_atlas.png ({width}x{height}) + sign_atlas.json ({len(meta)} signs)")
 
 
+def gen_dome_gold(size=512):
+    """
+    dome_gold_{diff,norm,rough}.jpg:
+    Gilded standing-seam gold panels for the Dome of the Rock cupola.
+    """
+    y = np.arange(size, dtype=np.float32)[:, None]
+    x = np.arange(size, dtype=np.float32)[None, :]
+    f_fine = tileable_fbm((size, size), octaves=4, base_freq=12, seed=621)
+    seam_x = np.abs(np.sin(x * (math.pi * 16.0 / size)))
+    seam_y = np.abs(np.sin(y * (math.pi * 8.0 / size)))
+    panel = np.clip(seam_x, 0.0, 1.0) * (0.85 + 0.15 * np.clip(seam_y, 0.0, 1.0))
+    height = 0.75 * panel + 0.25 * f_fine
+    r = 232.0 + (panel - 0.5) * 14.0 + (f_fine - 0.5) * 10.0
+    g = 186.0 + (panel - 0.5) * 13.0 + (f_fine - 0.5) * 9.0
+    b = 66.0 + (panel - 0.5) * 10.0 + (f_fine - 0.5) * 8.0
+    diff = np.stack([r, g, b], axis=-1)
+    rough = np.clip(0.24 + (1.0 - panel) * 0.12 + (f_fine - 0.5) * 0.05, 0.16, 0.42)
+    save_pbr_set("dome_gold", diff, height, rough, norm_strength=10.0)
+
+
+def gen_dome_lead(size=512):
+    """
+    dome_lead_{diff,norm,rough}.jpg:
+    Ribbed weathered silver-grey lead roofing panels for the Al-Aqsa & Anastasis domes.
+    """
+    y = np.arange(size, dtype=np.float32)[:, None]
+    x = np.arange(size, dtype=np.float32)[None, :]
+    f_patina = tileable_fbm((size, size), octaves=4, base_freq=10, seed=622)
+    rib_x = np.abs(np.sin(x * (math.pi * 14.0 / size)))
+    seam_y = np.abs(np.sin(y * (math.pi * 6.0 / size)))
+    panel = np.clip(rib_x, 0.0, 1.0) * (0.82 + 0.18 * np.clip(seam_y, 0.0, 1.0))
+    height = 0.78 * panel + 0.22 * f_patina
+    r = 123.0 + (panel - 0.5) * 10.0 + (f_patina - 0.5) * 9.0
+    g = 126.0 + (panel - 0.5) * 10.0 + (f_patina - 0.5) * 9.0
+    b = 131.0 + (panel - 0.5) * 10.0 + (f_patina - 0.5) * 9.0
+    diff = np.stack([r, g, b], axis=-1)
+    rough = np.clip(0.51 + (1.0 - panel) * 0.10 + (f_patina - 0.5) * 0.06, 0.38, 0.68)
+    save_pbr_set("dome_lead", diff, height, rough, norm_strength=11.0)
+
+
+def gen_tile_iznik(size=512):
+    """
+    tile_iznik_{diff,norm,rough}.jpg:
+    Ottoman cobalt-blue, turquoise, and ivory glazed Iznik ceramic tilework for the
+    Dome of the Rock octagonal drum and Armenian narthexes.
+    """
+    y = np.arange(size, dtype=np.float32)[:, None]
+    x = np.arange(size, dtype=np.float32)[None, :]
+    f_micro = tileable_fbm((size, size), octaves=3, base_freq=16, seed=623)
+    grid = 8
+    cell = size / grid
+    lx = (x % cell) / cell
+    ly = (y % cell) / cell
+    grout_dist = np.minimum(np.minimum(lx, 1.0 - lx), np.minimum(ly, 1.0 - ly)) * cell
+    tile_mask = np.clip((grout_dist - 1.8) / 3.0, 0.0, 1.0)
+    cx = (lx - 0.5) * 2.0
+    cy = (ly - 0.5) * 2.0
+    rad = np.sqrt(cx * cx + cy * cy)
+    ang = np.arctan2(cy, cx)
+    rosette = np.cos(ang * 8.0) * np.exp(-((rad - 0.52) ** 2) / 0.04)
+    arabesque = np.cos(cx * math.pi * 2.0) * np.cos(cy * math.pi * 2.0)
+    turquoise_w = np.clip((rosette + 0.35 * arabesque - 0.15) * 3.0, 0.0, 1.0) * tile_mask
+    ivory_w = np.clip((np.abs(rad - 0.72) < 0.09).astype(np.float32) * (0.5 + 0.5 * np.cos(ang * 12.0)), 0.0, 1.0) * tile_mask
+    cobalt_w = np.clip(tile_mask - turquoise_w - ivory_w, 0.0, 1.0)
+    grout_w = 1.0 - tile_mask
+
+    r = cobalt_w * 34.0 + turquoise_w * 52.0 + ivory_w * 228.0 + grout_w * 176.0 + (f_micro - 0.5) * 10.0
+    g = cobalt_w * 78.0 + turquoise_w * 168.0 + ivory_w * 222.0 + grout_w * 170.0 + (f_micro - 0.5) * 10.0
+    b = cobalt_w * 156.0 + turquoise_w * 192.0 + ivory_w * 204.0 + grout_w * 156.0 + (f_micro - 0.5) * 10.0
+    diff = np.stack([r, g, b], axis=-1)
+    height = tile_mask * (0.82 + 0.08 * turquoise_w + 0.06 * ivory_w + 0.04 * f_micro) + grout_w * 0.12
+    rough = tile_mask * (0.22 + 0.06 * f_micro) + grout_w * 0.82
+    save_pbr_set("tile_iznik", diff, height, rough, norm_strength=8.5)
+
+
 # =============================================================================
 # Main Entrypoint
 # =============================================================================
@@ -1463,6 +1538,9 @@ def main():
     gen_paving_setts(1024)
     gen_plaster_warm(1024)
     gen_roof_tile(1024)
+    gen_dome_gold(512)
+    gen_dome_lead(512)
+    gen_tile_iznik(512)
 
     gen_wood_doors_atlas(1024)
 
