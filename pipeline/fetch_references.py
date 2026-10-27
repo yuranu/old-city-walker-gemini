@@ -420,12 +420,17 @@ def main():
     for d in (data_dir, pub_data_dir, ref_dir, pub_ref_dir):
         d.mkdir(parents=True, exist_ok=True)
 
-    # 1. Save data/places.json and public/data/places.json
-    places_out = [dict(pl) for pl in PLACES]
-    for p in (data_dir / "places.json", pub_data_dir / "places.json"):
-        with open(p, "w", encoding="utf-8") as f:
-            json.dump(places_out, f, indent=2, ensure_ascii=False)
-        print(f"[OK] Wrote {p} ({len(places_out)} viewpoints)")
+    # 1. Preserve full 29-POI data/places.json if present, and sync to public/data/places.json
+    src_places = data_dir / "places.json"
+    if src_places.exists():
+        places_out = json.loads(src_places.read_text(encoding="utf-8"))
+    else:
+        places_out = [dict(pl) for pl in PLACES]
+        src_places.write_text(json.dumps(places_out, indent=2, ensure_ascii=False), encoding="utf-8")
+    (pub_data_dir / "places.json").write_text(
+        json.dumps(places_out, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    print(f"[OK] Synced public/data/places.json ({len(places_out)} viewpoints)")
 
     # 2. Fetch distinct, verified Wikimedia Commons photographs for each of the 10 viewpoints
     session = requests.Session()

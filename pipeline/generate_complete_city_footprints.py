@@ -711,7 +711,7 @@ def main() -> None:
     #    inside `city_wall_poly` plus the extramural Mamilla buildings outside `city_wall_poly`
     jaffa_raw_path = root / "data" / "osm_jaffa_raw.json"
     jaffa_path = root / "data" / "osm_jaffa.json"
-    if jaffa_path.exists():
+    if jaffa_raw_path.exists() or jaffa_path.exists():
         if not jaffa_raw_path.exists():
             jaffa_raw_path.write_text(jaffa_path.read_text(encoding="utf-8"), encoding="utf-8")
         j_data = json.loads(jaffa_raw_path.read_text(encoding="utf-8"))
@@ -733,8 +733,8 @@ def main() -> None:
         j_data["tunnel_passages"] = [tp for tp in tunnel_passages if tp.get("region") == "r01_jaffa_gate"]
         jaffa_path.write_text(json.dumps(j_data, indent=2, ensure_ascii=False), encoding="utf-8")
         public_jaffa_path = root / "public" / "data" / "osm_jaffa.json"
-        if public_jaffa_path.exists():
-            public_jaffa_path.write_text(json.dumps(j_data, indent=2, ensure_ascii=False), encoding="utf-8")
+        public_jaffa_path.parent.mkdir(parents=True, exist_ok=True)
+        public_jaffa_path.write_text(json.dumps(j_data, indent=2, ensure_ascii=False), encoding="utf-8")
 
     # 6. Render diagnostic plan `build/qa/osm_complete_city_outline.png`
     W, H = 1600, 1600

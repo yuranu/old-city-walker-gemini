@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 scripts/make_roam_sheets.py
-Generates side-by-side GOOGLE STREET VIEW | GAME SCREENSHOT pairs (`pair_<refId>.jpg`)
+Generates side-by-side REFERENCE PHOTO | GAME SCREENSHOT pairs (`pair_<refId>.jpg`)
 and labeled zone contact sheets (`contact_zone1_west_and_gate.jpg`, etc.) for AI Visual Agents.
 """
 
@@ -37,9 +37,9 @@ def main() -> None:
         ref_id = v.get("refId")
         if not ref_id:
             continue
-        ref_path = root_dir / "data" / "streetview_references" / f"{ref_id}.jpg"
+        ref_path = ref_dir / f"{ref_id}.jpg"
         if not ref_path.exists():
-            ref_path = ref_dir / f"{ref_id}.jpg"
+            ref_path = root_dir / "data" / "references" / f"{ref_id}.jpg"
         mod_path = out_dir / v["file"]
         if not ref_path.exists() or not mod_path.exists():
             continue
@@ -49,7 +49,7 @@ def main() -> None:
         pair.paste(ref_im, (0, 48))
         pair.paste(mod_im, (960, 48))
         dr = ImageDraw.Draw(pair)
-        dr.text((16, 14), f"GOOGLE STREET VIEW: {ref_id} ({v.get('name', '')})", fill=(130, 220, 255), font=font)
+        dr.text((16, 14), f"REFERENCE PHOTO: {ref_id} ({v.get('name', '')})", fill=(130, 220, 255), font=font)
         dr.text(
             (976, 14),
             f"GAME SCREENSHOT: ({v.get('x')}m, {v.get('y')}m, hdg={v.get('heading')}, pitch={v.get('pitch')})",

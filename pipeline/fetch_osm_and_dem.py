@@ -627,15 +627,24 @@ def process_osm_data(raw_osm: dict, dem_data: dict) -> dict:
 
 
 def main():
+    import sys
+
     root = Path(__file__).resolve().parent.parent
     data_dir = root / "data"
     pub_data_dir = root / "public" / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     pub_data_dir.mkdir(parents=True, exist_ok=True)
 
-    dem_data = fetch_open_meteo_dem_grid()
-    raw_osm = query_overpass()
-    processed = process_osm_data(raw_osm, dem_data)
+    raw_snapshot_path = data_dir / "osm_old_city_raw.json"
+    if raw_snapshot_path.exists() and "--refresh" not in sys.argv:
+        print(f"[OSM] Using pinned snapshot {raw_snapshot_path} (pass --refresh to re-query Overpass API)")
+        processed = json.loads(raw_snapshot_path.read_text(encoding="utf-8"))
+    else:
+        dem_data = fetch_open_meteo_dem_grid()
+        raw_osm = query_overpass()
+        processed = process_osm_data(raw_osm, dem_data)
+        raw_snapshot_path.write_text(json.dumps(processed, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"[OK] Updated pinned snapshot {raw_snapshot_path}")
 
     out_paths = [
         data_dir / "osm_old_city.json",
