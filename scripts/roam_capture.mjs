@@ -5,7 +5,7 @@
  * Roaming Multi-Angle Screenshot Capture Tool for AI Visual Sanity & Realism Agents.
  * - Captures 1280x800 WebGL screenshots across the entire walkable area from varied
  *   positions, headings (360° sweeps), and pitches (street level, look-up, look-down, overview),
- *   plus side-by-side Game vs. Google Street View comparison pairs (`pair_<id>.jpg`).
+ *   plus side-by-side Reference Photo vs. Game comparison pairs (`pair_<id>.jpg`).
  * - Can also be invoked by an AI Explorer agent with custom poses:
  *     node scripts/roam_capture.mjs --out build/qa/custom --poses '[{"id":"test1","x":25,"y":5,"heading":180,"pitch":0}]'
  */

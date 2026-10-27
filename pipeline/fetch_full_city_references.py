@@ -34,12 +34,12 @@ POI_QUERIES = {
     "al_aqsa_mosque_porch": "Al-Aqsa Mosque facade Jerusalem",
     "golden_gate_sanctuary": "Golden Gate Jerusalem Temple Mount",
     "damascus_gate_plaza": "Damascus Gate Jerusalem",
-    "ecce_homo_via_dolorosa": "Via Dolorosa arch Jerusalem",
+    "ecce_homo_via_dolorosa": "Ecce Homo arch Via Dolorosa Jerusalem",
     "st_anne_and_lions_gate": "Church of Saint Anne Jerusalem facade",
     "herods_gate_portal": "Herod's Gate Jerusalem",
 }
 
-HEADERS = {"User-Agent": "OldCityWalkerBot/1.0 (https://old-city-walker.yuranu.com)"}
+HEADERS = {"User-Agent": "OldCityWalkerBot/1.0 (https://old-city-walker-gemini.yuranu.com)"}
 
 
 def fetch_commons_photo(query: str):
@@ -66,7 +66,7 @@ def fetch_commons_photo(query: str):
         ii = ii_list[0]
         w = int(ii.get("width", 0))
         h = int(ii.get("height", 0))
-        if w < 500 or h < 350 or w < h * 0.85:
+        if w < 500 or h < 350 or w < h * 0.65:
             continue
         thumb_url = ii.get("thumburl") or ii.get("url")
         if not thumb_url:
@@ -87,18 +87,23 @@ def main():
     PUB_REF_DIR.mkdir(parents=True, exist_ok=True)
     DATA_REF_DIR.mkdir(parents=True, exist_ok=True)
     refs_meta = {}
-    if REF_JSON_PATH.exists():
-        try:
-            loaded = json.loads(REF_JSON_PATH.read_text(encoding="utf-8"))
-            if isinstance(loaded, dict):
-                refs_meta = loaded
-        except Exception:
-            pass
+    for candidate_path in (REF_JSON_PATH, ROOT_DIR / "data" / "references.json"):
+        if candidate_path.exists():
+            try:
+                loaded = json.loads(candidate_path.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    refs_meta.update(loaded)
+                elif isinstance(loaded, list):
+                    for item in loaded:
+                        if isinstance(item, dict) and "id" in item:
+                            refs_meta[item["id"]] = item
+            except Exception:
+                pass
 
     for pid, q in POI_QUERIES.items():
         out_pub = PUB_REF_DIR / f"{pid}.jpg"
         out_dat = DATA_REF_DIR / f"{pid}.jpg"
-        if out_pub.exists() and out_pub.stat().st_size > 10000:
+        if out_pub.exists() and out_pub.stat().st_size > 10000 and pid in refs_meta:
             print(f"[SKIP] {pid}.jpg already exists")
             continue
         im, title, desc_url = fetch_commons_photo(q)
@@ -106,11 +111,19 @@ def main():
             im.save(out_pub, quality=84, optimize=True)
             im.save(out_dat, quality=84, optimize=True)
             print(f"[OK] Downloaded {pid}.jpg ({title})")
-            refs_meta[pid] = {"id": pid, "image": f"/references/{pid}.jpg", "title": title, "source": desc_url}
+            refs_meta[pid] = {
+                "id": pid,
+                "image": f"/references/{pid}.jpg",
+                "source": "Wikimedia Commons",
+                "commons_title": title,
+                "source_url": desc_url,
+            }
         else:
             print(f"[WARN] Could not fetch photo for {pid}")
 
-    REF_JSON_PATH.write_text(json.dumps(refs_meta, indent=2), encoding="utf-8")
+    out_text = json.dumps(refs_meta, indent=2, ensure_ascii=False)
+    REF_JSON_PATH.write_text(out_text, encoding="utf-8")
+    (ROOT_DIR / "data" / "references.json").write_text(out_text, encoding="utf-8")
 
 
 if __name__ == "__main__":

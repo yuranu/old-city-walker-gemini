@@ -9,3 +9,18 @@ __pycache__/
 *.pyc
 .wrangler/
 qa_automated_audit.json
+
+# Generated runtime assets & derived pipeline outputs (100% reproducible via ./build.sh)
+public/models/
+public/textures/
+public/references/
+public/data/
+data/pbr_cache/
+data/references/
+data/streetview_references/
+data/streetview_trekker_graph.json
+data/jerusalem_overture_*
+data/osm_old_city.json
+data/osm_jaffa.json
+data/city_plan.json
+data/references.json

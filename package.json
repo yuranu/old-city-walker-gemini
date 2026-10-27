@@ -1,6 +1,7 @@
 {
-  "name": "old-city-walker-jaffa-gate",
+  "name": "old-city-walker-gemini",
   "version": "1.0.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {

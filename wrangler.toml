@@ -1,4 +1,4 @@
-name = "old-city-walker"
+name = "old-city-walker-gemini"
 compatibility_date = "2025-01-01"
 
 # Pure Static Assets mode: serves all files directly from Cloudflare's edge CDN
@@ -7,5 +7,5 @@ compatibility_date = "2025-01-01"
 directory = "./dist"
 
 [[routes]]
-pattern = "old-city-walker.yuranu.com"
+pattern = "old-city-walker-gemini.yuranu.com"
 custom_domain = true
