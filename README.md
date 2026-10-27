@@ -53,16 +53,28 @@ data/osm_old_city_raw.json & data/osm_jaffa_raw.json (Pinned OSM + DEM snapshots
 
 ---
 
-## Building & Running Locally
+## Running Locally
 
-### Prerequisites
+### Option A — Quick Start (Pre-Built Release Snapshot, No Blender/Python Required)
+
+If you just want to run the 3D city locally with Node.js without running the Python/Blender generation pipeline, download the pre-built snapshot from [GitHub Releases](https://github.com/yuranu/old-city-walker-game/releases/tag/v1.0.0) (which works either standalone or extracted directly into a clone of this repo):
+
+```bash
+curl -L https://github.com/yuranu/old-city-walker-game/releases/download/v1.0.0/old-city-walker-prebuilt-v1.0.0.tar.gz | tar -xz
+npm install
+npm run dev
+```
+
+### Option B — Full Reproducible Build from Source
+
+#### Prerequisites
 
 - **Linux / macOS** with bash
 - **Python 3.10+** (for data processing, Shapely parcelization, and PBR texture synthesis)
 - **Blender 4.0+** (`blender` on `PATH`, invoked in `--background` headless mode)
 - **Node.js 18+** & **npm** (for the Vite + Three.js + `three-mesh-bvh` web walker)
 
-### 1. Install Dependencies
+#### 1. Install Dependencies
 
 ```bash
 # Python virtual environment
@@ -73,7 +85,7 @@ python3 -m venv .venv
 npm install
 ```
 
-### 2. Run the Full City Build Pipeline
+#### 2. Run the Full City Build Pipeline
 
 ```bash
 ./build.sh
