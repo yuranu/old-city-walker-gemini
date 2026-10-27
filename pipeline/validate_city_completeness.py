@@ -496,6 +496,8 @@ def validate_city() -> int:
     if floating_domes:
         print("  [!] Floating domes:", floating_domes[:5])
 
+    if blocked_points or void_points or floating_walls or floating_roofs or floating_domes:
+        return 1
     return 0
 
 

@@ -520,7 +520,9 @@ def main() -> None:
     carve_geoms.append(LineString([(232.0, 128.0), (241.5, 149.1), (242.2, 161.5)]).buffer(2.45, cap_style=1, join_style=1))
 
     # Ensure the 29 official POI viewpoints in places.json are not inside a building
-    places_path = root / "public" / "data" / "places.json"
+    places_path = root / "data" / "places.json"
+    if not places_path.exists():
+        places_path = root / "public" / "data" / "places.json"
     if places_path.exists():
         pdata = json.loads(places_path.read_text(encoding="utf-8"))
         plist = pdata.get("places", pdata) if isinstance(pdata, dict) else pdata

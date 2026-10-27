@@ -22,6 +22,8 @@ BLENDER="${BLENDER:-blender}"
 REGIONS="${REGIONS:-all}"
 
 echo "=== [1/5] Processing OpenStreetMap & Elevation into City Plan and Urban Block Parcels ==="
+mkdir -p public/data
+cp -f data/places.json public/data/places.json
 "$PY" pipeline/fetch_osm_and_dem.py
 "$PY" pipeline/build_city_plan.py
 "$PY" pipeline/generate_complete_city_footprints.py
