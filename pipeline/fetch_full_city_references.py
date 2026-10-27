@@ -77,10 +77,16 @@ def fetch_commons_photo(query: str):
                 raw = img_resp.read()
             im = Image.open(BytesIO(raw)).convert("RGB")
             im = im.resize((960, 600), Image.Resampling.LANCZOS)
-            return im, page.get("title", ""), ii.get("descriptionurl", "")
+            import re
+
+            ext = ii.get("extmetadata", {})
+            raw_artist = str(ext.get("Artist", {}).get("value", "") or "")
+            artist = re.sub(r"<[^>]+>", "", raw_artist).strip() or "Wikimedia Commons contributor"
+            lic_short = str(ext.get("LicenseShortName", {}).get("value", "") or "CC BY-SA").strip()
+            return im, page.get("title", ""), ii.get("descriptionurl", ""), artist, lic_short
         except Exception:
             continue
-    return None, "", ""
+    return None, "", "", "", ""
 
 
 def main():
@@ -103,19 +109,21 @@ def main():
     for pid, q in POI_QUERIES.items():
         out_pub = PUB_REF_DIR / f"{pid}.jpg"
         out_dat = DATA_REF_DIR / f"{pid}.jpg"
-        if out_pub.exists() and out_pub.stat().st_size > 10000 and pid in refs_meta:
+        if out_pub.exists() and out_pub.stat().st_size > 10000 and pid in refs_meta and "author" in refs_meta[pid]:
             print(f"[SKIP] {pid}.jpg already exists")
             continue
-        im, title, desc_url = fetch_commons_photo(q)
+        im, title, desc_url, artist, lic_short = fetch_commons_photo(q)
         if im is not None:
             im.save(out_pub, quality=84, optimize=True)
             im.save(out_dat, quality=84, optimize=True)
-            print(f"[OK] Downloaded {pid}.jpg ({title})")
+            print(f"[OK] Downloaded {pid}.jpg ({title} | {artist} | {lic_short})")
             refs_meta[pid] = {
                 "id": pid,
                 "image": f"/references/{pid}.jpg",
                 "source": "Wikimedia Commons",
                 "commons_title": title,
+                "author": artist,
+                "license": lic_short,
                 "source_url": desc_url,
             }
         else:

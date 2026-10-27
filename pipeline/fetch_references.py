@@ -467,7 +467,13 @@ def main():
                 dest_files = [ref_dir / f"{pid}.jpg", pub_ref_dir / f"{pid}.jpg"]
                 ok, img_stats = verify_and_save_image_bytes(resp.content, dest_files)
                 if ok:
+                    import re
+
                     used_titles.add(title)
+                    ext = info.get("extmetadata", {})
+                    raw_artist = str(ext.get("Artist", {}).get("value", "") or "")
+                    artist = re.sub(r"<[^>]+>", "", raw_artist).strip() or "Wikimedia Commons contributor"
+                    lic_short = str(ext.get("LicenseShortName", {}).get("value", "") or "CC BY-SA").strip()
                     saved_meta = {
                         "id": pid,
                         "name": pl["name"],
@@ -483,6 +489,8 @@ def main():
                         "local_path": f"data/references/{pid}.jpg",
                         "source": "Wikimedia Commons",
                         "commons_title": title,
+                        "author": artist,
+                        "license": lic_short,
                         "source_url": info.get("descriptionurl", img_url),
                         "stats": img_stats,
                     }

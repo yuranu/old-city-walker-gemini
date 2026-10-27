@@ -755,16 +755,29 @@ async function initApp() {
     }
   });
 
+  let referencesById = new Map();
+
   function updatePhotoDrawer(place) {
     if (!place) return;
     const imgEl = document.getElementById('ref-photo-img');
     const titleEl = document.getElementById('ref-photo-title');
     const notesEl = document.getElementById('ref-photo-notes');
+    const creditEl = document.getElementById('ref-photo-credit');
     if (imgEl && place.photo) {
       imgEl.src = place.photo;
     }
     if (titleEl) titleEl.textContent = place.name;
     if (notesEl) notesEl.textContent = place.subtitle || '';
+    if (creditEl) {
+      const refMeta = referencesById.get(place.id);
+      if (refMeta && refMeta.source_url) {
+        const author = refMeta.author || 'Wikimedia Commons';
+        const lic = refMeta.license || 'CC BY-SA';
+        creditEl.innerHTML = `Photo: ${author} (${lic}) &middot; <a href="${refMeta.source_url}" target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:underline;">Wikimedia Commons</a>`;
+      } else {
+        creditEl.innerHTML = `Photo: <a href="https://commons.wikimedia.org" target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:underline;">Wikimedia Commons</a>`;
+      }
+    }
   }
 
   function findNearestPlace(x, y) {
@@ -1264,11 +1277,24 @@ async function initApp() {
   const loaderStatus = document.getElementById('loader-status');
 
   const ASSET_VER = 'v=city360';
-  const [rawPlacesData, rawManifestData, rawCityPlanData] = await Promise.all([
+  const [rawPlacesData, rawManifestData, rawCityPlanData, rawReferencesData] = await Promise.all([
     fetchJsonSafe(`/data/places.json?${ASSET_VER}`, null),
     fetchJsonSafe(`/data/scene_manifest.json?${ASSET_VER}`, null),
-    fetchJsonSafe(`/data/city_plan.json?${ASSET_VER}`, null)
+    fetchJsonSafe(`/data/city_plan.json?${ASSET_VER}`, null),
+    fetchJsonSafe(`/data/references.json?${ASSET_VER}`, null)
   ]);
+
+  if (rawReferencesData) {
+    if (Array.isArray(rawReferencesData)) {
+      rawReferencesData.forEach((r) => {
+        if (r && r.id) referencesById.set(r.id, r);
+      });
+    } else if (typeof rawReferencesData === 'object') {
+      Object.values(rawReferencesData).forEach((r) => {
+        if (r && r.id) referencesById.set(r.id, r);
+      });
+    }
+  }
 
   if (rawCityPlanData) {
     minimap.setCityPlan(rawCityPlanData);
