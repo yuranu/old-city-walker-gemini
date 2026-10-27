@@ -57,10 +57,10 @@ data/osm_old_city_raw.json & data/osm_jaffa_raw.json (Pinned OSM + DEM snapshots
 
 ### Option A — Quick Start (Pre-Built Release Snapshot, No Blender/Python Required)
 
-If you just want to run the 3D city locally with Node.js without running the Python/Blender generation pipeline, download the pre-built snapshot from [GitHub Releases](https://github.com/yuranu/old-city-walker-game/releases/tag/v1.0.0) (which works either standalone or extracted directly into a clone of this repo):
+If you just want to run the 3D city locally with Node.js without running the Python/Blender generation pipeline, download the pre-built snapshot from [GitHub Releases](https://github.com/yuranu/old-city-walker-gemini/releases/tag/v1.0.0) (which works either standalone or extracted directly into a clone of this repo):
 
 ```bash
-curl -L https://github.com/yuranu/old-city-walker-game/releases/download/v1.0.0/old-city-walker-prebuilt-v1.0.0.tar.gz | tar -xz
+curl -L https://github.com/yuranu/old-city-walker-gemini/releases/download/v1.0.0/old-city-walker-prebuilt-v1.0.0.tar.gz | tar -xz
 npm install
 npm run dev
 ```

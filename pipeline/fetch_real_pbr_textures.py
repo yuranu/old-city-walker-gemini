@@ -70,7 +70,7 @@ OUT_DIR = ROOT_DIR / "public" / "textures"
 CACHE_DIR = ROOT_DIR / "data" / "pbr_cache"
 
 HEADERS = {
-    "User-Agent": "OldCityWalkerCleanRoom/2.0 (https://github.com/yuranu/old-city-walker-game)"
+    "User-Agent": "OldCityWalkerCleanRoom/2.0 (https://github.com/yuranu/old-city-walker-gemini)"
 }
 
 

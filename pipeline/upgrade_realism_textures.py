@@ -67,7 +67,7 @@ def fetch_real_stone_grain(size: int = 1024) -> np.ndarray:
         "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Limestone_wall_in_Jerusalem.jpg/1024px-Limestone_wall_in_Jerusalem.jpg",
         "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Old_City_of_Jerusalem_wall_stones.jpg/1024px-Old_City_of_Jerusalem_wall_stones.jpg",
     ]
-    headers = {"User-Agent": "OldCityWalkerCleanRoom/2.0 (https://github.com/yuranu/old-city-walker-game)"}
+    headers = {"User-Agent": "OldCityWalkerCleanRoom/2.0 (https://github.com/yuranu/old-city-walker-gemini)"}
     raw_gray = None
     for url in urls:
         try:
